@@ -26,7 +26,7 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 - **Signature Registration:** The signed delegation signature payload is registered on the GenLayer contract (`register_delegation`), making it retrievable by any authorized client executing a payout.
 
 ### 3. Gasless 1Shot Relayer Dispatcher (ERC-7710)
-- **1Shot API Endpoint:** `https://relayer.1shotapi.com/relayers` (Chain ID `84532`)
+- **1Shot API Endpoint:** `https://relayer.1shotapi.dev/relayers` (Chain ID `84532`)
 - **Gasless Payments:** Once a proposal is approved on GenLayer, the execution client grabs the registered delegation signature, estimates gas costs in USDC, bundles a fee payment to the relayer along with the recipient transfer, and submits it to the 1Shot Relayer. The transaction executes gaslessly, paid directly from the treasury's USDC balance.
 
 ### 4. Payout Reliability & Double-Spend Protection
@@ -111,7 +111,7 @@ The frontend is built using **Vite + React + TypeScript + Vanilla CSS**, styled 
    Create a `.env` file in the root folder with the following variables:
    ```env
    VITE_USDC_TOKEN_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
-   VITE_RELAYER_URL=https://relayer.1shotapi.com/relayers
+   VITE_RELAYER_URL=https://relayer.1shotapi.dev/relayers
    VITE_GENLAYER_CHAIN_ID=61999
    ```
 

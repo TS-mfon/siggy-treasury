@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BarChart2, Activity, Link2, GitCommit, Shield } from "lucide-react";
 import { getAllProposals } from "../lib/genlayer";
+import { RELAYER_URL } from "../lib/relayer";
 
 interface Proposal {
   id: number;
@@ -171,7 +172,7 @@ export const StatsPage: React.FC = () => {
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>1SHOT ENDPOINT:</span>
-                  <span>https://relayer.1shotapi.com/relayers</span>
+                  <span>{RELAYER_URL}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>CHAIN:</span>

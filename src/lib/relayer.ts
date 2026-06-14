@@ -1,6 +1,6 @@
 import { encodeFunctionData, parseAbi } from "viem";
 
-const RELAYER_URL = "https://relayer.1shotapi.com/relayers";
+export const RELAYER_URL = import.meta.env.VITE_RELAYER_URL || "https://relayer.1shotapi.dev/relayers";
 
 // Standard ERC-20 ABI snippet for transfer
 const erc20Abi = parseAbi([
