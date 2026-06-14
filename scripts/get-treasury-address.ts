@@ -42,7 +42,7 @@ async function main() {
     implementation: Implementation.Hybrid,
     deployParams: [ownerAccount.address, [], [], []],
     deploySalt: "0x0000000000000000000000000000000000000000000000000000000000000000",
-    signer: walletClient,
+    signer: { walletClient },
   } as any);
 
   console.log("Calculated Treasury Smart Account Address:", smartAccount.address);

@@ -31,7 +31,7 @@ export async function getTreasurySmartAccount(ownerAddress: `0x${string}`, walle
     implementation: Implementation.Hybrid,
     deployParams: [ownerAddress, [], [], []],
     deploySalt: "0x0000000000000000000000000000000000000000000000000000000000000000",
-    signer: walletClient,
+    signer: { walletClient },
   } as any);
 }
 
