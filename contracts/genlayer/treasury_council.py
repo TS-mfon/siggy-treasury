@@ -91,7 +91,7 @@ class TreasuryCouncil(gl.Contract):
         token_address: str, executor_address: str
     ) -> None:
         if gl.message.sender_address != self.owner:
-            raise gl.UserError(f"{ERROR_EXPECTED} Only owner")
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only owner")
         self.delegation_payload = delegation_payload
         self.treasury_address = treasury_address
         self.token_address = token_address
@@ -265,7 +265,7 @@ max_amount_micro is the MOST you'd approve, which may be less than requested. Do
     def evaluate_proposal(self, pid: u256) -> dict:
         p = self.proposals[pid]
         if p.status != "pending":
-            raise gl.UserError(f"{ERROR_EXPECTED} Proposal not pending")
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal not pending")
 
         skeptic_raw = self._evaluate_persona("skeptic", p)
         strategist_raw = self._evaluate_persona("strategist", p)
@@ -328,7 +328,7 @@ max_amount_micro is the MOST you'd approve, which may be less than requested. Do
     def mark_executed(self, pid: u256, tx_hash: str) -> None:
         p = self.proposals[pid]
         if p.status != "approved":
-            raise gl.UserError(f"{ERROR_EXPECTED} Proposal not approved")
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal not approved")
         p.status = "executed"
         p.tx_hash = tx_hash
         self.proposals[pid] = p

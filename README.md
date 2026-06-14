@@ -15,7 +15,7 @@ Traditional DAO spending councils suffer from high operational overhead, voter a
 ## 🛠️ Key Innovation & Technical Pillars
 
 ### 1. GenLayer Intelligent Contract (Studionet)
-Deployed at: `0xb18D9EB0EF7f1b3A55C54AB01CAB8a6894b9c5D3` (Chain ID `61999`)
+Deployed at: `0xc7E77a13C195C0B44fAe4c4313cFfA8020793bB8` (Chain ID `61999`)
 - **Non-Deterministic Consensus:** The council agents evaluate proposals using GenVM's native `gl.nondet.exec_prompt()`.
 - **Equivalence Principle:** To prevent validator consensus divergence (where different validators query the LLM and get varying text, resulting in validation failure), Siggy enforces a deterministic validator strategy (`validator_fn`). The validator verifies the proposed schema, bounds, and requested amount limits instead of re-running non-deterministic prompts. This ensures consensus finalizes reliably with `MAJORITY_AGREE`.
 - **Weekly Spending Cap:** Enforces a minimum cap of **500 USDC** on weekly discretionary spending. Any proposal exceeding the weekly limit is automatically rejected by the AI agents.
@@ -115,7 +115,7 @@ Built using **Vite + React + TypeScript + Vanilla CSS**, styled with a premium r
 To thoroughly evaluate the Siggy prototype:
 
 1. **Retrieve the Deployed Addresses:**
-   - **GenLayer Studionet Contract:** `0xb18D9EB0EF7f1b3A55C54AB01CAB8a6894b9c5D3`
+   - **GenLayer Studionet Contract:** `0xc7E77a13C195C0B44fAe4c4313cFfA8020793bB8`
    - **Council Session/Burner Address:** `0x9d229da88714D78C43E2298Ccb8432946CC9810F`
    - **Base Sepolia USDC Token:** `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 
