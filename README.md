@@ -33,6 +33,7 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 - **Pre-flight Status Validation:** Prior to initiating the gasless relayer flow, the frontend performs a real-time query (`getProposal`) to verify that the proposal's on-chain status is still `approved` (and not already `executed`).
 - **Relayer Estimation Validation:** Robust response validations protect `estimate7710Transaction` results. If the 1Shot Relayer returns empty results or error fields (such as chain support mismatches), the DApp catches it and outputs a descriptive log in the console instead of crashing with `Cannot convert undefined to a BigInt`.
 - **Double-click Prevention:** An active proposal execution tracking state `executingPids` disables the execution buttons and blocks duplicate execution requests while a payout transaction is actively being estimated, signed, or relayed.
+- **EIP-7710 Transaction-Level Authorization:** Transaction payloads passed to the relayer now include the `permissionContext` attribute extracted from the ERC-7715 delegation signature context, meeting the structural requirements of the 1Shot Relayer backend validation schema.
 
 ---
 

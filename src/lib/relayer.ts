@@ -61,7 +61,7 @@ export function encodeErc20Transfer(recipient: string, amount: bigint): `0x${str
 export async function estimate7710Transaction(
   chainId: string,
   tokenAddress: string,
-  transactions: Array<{ to: string; data: string; value: string }>,
+  transactions: Array<{ to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any
 ): Promise<{ requiredPaymentAmount: string; gasUsed: string; context: string }> {
   const payload = {
@@ -77,7 +77,7 @@ export async function estimate7710Transaction(
 export async function send7710Transaction(
   chainId: string,
   tokenAddress: string,
-  transactions: Array<{ to: string; data: string; value: string }>,
+  transactions: Array<{ to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any,
   context: string
 ): Promise<string> {

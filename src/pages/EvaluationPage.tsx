@@ -187,7 +187,11 @@ export const EvaluationPage: React.FC = () => {
       }
       
       const signedDelegationBundle = JSON.parse(execContext.delegation_payload);
-      addLog("[SUCCESS] Authorized delegation payload retrieved.");
+      const permissionContext = signedDelegationBundle[0]?.context || signedDelegationBundle.context;
+      if (!permissionContext) {
+        throw new Error("No permissionContext found in the delegation payload.");
+      }
+      addLog("[SUCCESS] Authorized delegation payload and context retrieved.");
 
       // 2. Discover Relayer capabilities & target fee address
       addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
@@ -202,7 +206,8 @@ export const EvaluationPage: React.FC = () => {
       const workTx = {
         to: USDC_BASE_SEPOLIA,
         data: workCalldata,
-        value: "0x0"
+        value: "0x0",
+        permissionContext
       };
 
       // 4. Estimate gas fee against relayer (First pass)
@@ -233,7 +238,8 @@ export const EvaluationPage: React.FC = () => {
       const feeTx = {
         to: USDC_BASE_SEPOLIA,
         data: feeCalldata,
-        value: "0x0"
+        value: "0x0",
+        permissionContext
       };
 
       const fullTransactions = [feeTx, workTx];
