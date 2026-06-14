@@ -44,6 +44,9 @@ export async function requestDelegationPermissions(
     throw new Error("No ethereum provider (MetaMask) found in the browser.");
   }
 
+  // Use treasuryAddress to avoid unused warning
+  console.log(`Requesting delegation permissions from treasury smart account: ${treasuryAddress}`);
+
   const walletClient = createWalletClient({
     chain: baseSepolia,
     transport: custom((window as any).ethereum),
@@ -59,13 +62,14 @@ export async function requestDelegationPermissions(
       to: executorAccount.address,
       permission: {
         type: "erc20-token-periodic",
+        isAdjustmentAllowed: false,
         data: {
           tokenAddress: USDC_BASE_SEPOLIA,
           periodAmount: limitAmount,
           periodDuration: 60 * 60 * 24 * 7, // 7 days (seconds)
           startTime: currentTime,
         },
-      },
+      } as any,
     },
   ]);
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, NavLink } from "react-router-dom";
-import { Terminal, Shield, Wallet, Brain, BarChart2, Cpu, ExternalLink } from "lucide-react";
+import { Shield, Wallet, Brain, BarChart2, Cpu } from "lucide-react";
 import { createWalletClient, custom } from "viem";
 import { baseSepolia } from "viem/chains";
 import { LandingPage } from "./pages/LandingPage";
@@ -28,7 +28,7 @@ function App() {
         const client = createWalletClient({
           chain: baseSepolia,
           transport: custom((window as any).ethereum),
-          account: currentAddr,
+          account: currentAddr as `0x${string}`,
         });
         setWalletClient(client);
 
@@ -68,10 +68,10 @@ function App() {
           if (accounts.length > 0) {
             const currentAddr = accounts[0];
             setOwnerAddress(currentAddr);
-            const client = createWalletClient({
+             const client = createWalletClient({
               chain: baseSepolia,
               transport: custom((window as any).ethereum),
-              account: currentAddr,
+              account: currentAddr as `0x${string}`,
             });
             setWalletClient(client);
           }
@@ -159,7 +159,7 @@ function App() {
             <div style={{ marginTop: "20px", marginBottom: "20px" }}>
               {ownerAddress ? (
                 <div style={{ padding: "8px", border: "1px dashed var(--matrix-green)", fontSize: "11px" }}>
-                  <div style={{ display: "flex", justify: "space-between", color: "var(--system-gray)" }}>
+                   <div style={{ display: "flex", justifyContent: "space-between", color: "var(--system-gray)" }}>
                     <span>CONNECTED ADMIN</span>
                   </div>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Terminal, BarChart2, Activity, Link2, GitCommit, Shield } from "lucide-react";
+import { BarChart2, Activity, Link2, GitCommit, Shield } from "lucide-react";
 import { getAllProposals } from "../lib/genlayer";
 
 interface Proposal {
@@ -115,7 +115,7 @@ export const StatsPage: React.FC = () => {
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px" }}>
                 <div>
-                  <div style={{ display: "flex", justify: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
                     <span>Executed Payouts ({stats.totalExecuted})</span>
                     <span>
                       {history.length > 0 ? ((stats.totalExecuted / history.length) * 100).toFixed(0) : 0}%
@@ -127,7 +127,7 @@ export const StatsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <div style={{ display: "flex", justify: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
                     <span>Approved & Pending Execution ({stats.totalApproved})</span>
                     <span>
                       {history.length > 0 ? ((stats.totalApproved / history.length) * 100).toFixed(0) : 0}%
@@ -139,7 +139,7 @@ export const StatsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <div style={{ display: "flex", justify: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
                     <span>Rejected Proposals ({stats.totalRejected})</span>
                     <span>
                       {history.length > 0 ? ((stats.totalRejected / history.length) * 100).toFixed(0) : 0}%
@@ -151,7 +151,7 @@ export const StatsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <div style={{ display: "flex", justify: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
                     <span>Pending Council Review ({stats.totalPending})</span>
                     <span>
                       {history.length > 0 ? ((stats.totalPending / history.length) * 100).toFixed(0) : 0}%
@@ -169,19 +169,19 @@ export const StatsPage: React.FC = () => {
                 <Shield size={12} /> RELAYER PLATFORM METRICS
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
-                <div style={{ display: "flex", justify: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>1SHOT ENDPOINT:</span>
                   <span>https://relayer.1shotapi.com/relayers</span>
                 </div>
-                <div style={{ display: "flex", justify: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>CHAIN:</span>
                   <span>Base Sepolia Testnet (84532)</span>
                 </div>
-                <div style={{ display: "flex", justify: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>USDC CONTRACT:</span>
                   <span>0x036CbD53842c5426634e7929541eC2318f3dCF7e</span>
                 </div>
-                <div style={{ display: "flex", justify: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "4px" }}>
                   <span style={{ color: "#777" }}>RELAY CAPABILITY:</span>
                   <span style={{ color: "var(--matrix-green)" }}>Sponsored / Gasless USDC</span>
                 </div>

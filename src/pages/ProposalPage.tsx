@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Terminal, Brain, Plus, Play, CheckCircle, AlertTriangle, Cpu, Shield, Loader } from "lucide-react";
+import { Terminal, Plus, Play, CheckCircle, Loader } from "lucide-react";
 import { 
   submitProposal, 
   evaluateProposal, 
@@ -12,9 +12,9 @@ import {
   estimate7710Transaction, 
   send7710Transaction, 
   pollTransactionStatus, 
-  encodeErc20Transfer,
-  USDC_BASE_SEPOLIA
+  encodeErc20Transfer
 } from "../lib/relayer";
+import { USDC_BASE_SEPOLIA } from "../lib/delegation";
 
 interface Proposal {
   id: number;
@@ -354,7 +354,7 @@ export const ProposalPage: React.FC = () => {
                   return (
                     <div key={p.id} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
                       <div 
-                        style={{ display: "flex", justify: "space-between", alignItems: "center", cursor: "pointer" }}
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
                         onClick={() => setExpandedId(isExpanded ? null : p.id)}
                       >
                         <div>
@@ -396,7 +396,7 @@ export const ProposalPage: React.FC = () => {
                               <div className="grid-3" style={{ gap: "12px" }}>
                                 {p.verdicts.map((v, i) => (
                                   <div key={i} className={`persona-card ${v.vote === "approve" ? "approve" : "reject"}`}>
-                                    <div className="persona-name" style={{ fontSize: "10px", display: "flex", justify: "space-between" }}>
+                                    <div className="persona-name" style={{ fontSize: "10px", display: "flex", justifyContent: "space-between" }}>
                                       <span>{v.persona.toUpperCase()}</span>
                                       <span style={{ color: v.vote === "approve" ? "var(--matrix-green)" : "var(--cyber-magenta)" }}>
                                         {v.vote.toUpperCase()}
@@ -429,11 +429,11 @@ export const ProposalPage: React.FC = () => {
                                 disabled={actionLoading === `council-${p.id}`}
                               >
                                 {actionLoading === `council-${p.id}` ? (
-                                  <span style={{ display: "flex", justify: "center", gap: "6px" }}>
+                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
                                     <Loader className="animate-spin" size={14} /> COMPUTING ONCHAIN CONSENSUS...
                                   </span>
                                 ) : (
-                                  <span style={{ display: "flex", justify: "center", gap: "6px" }}>
+                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
                                     <Play size={12} /> RUN COUNCIL EVALUATION
                                   </span>
                                 )}
@@ -448,11 +448,11 @@ export const ProposalPage: React.FC = () => {
                                 disabled={actionLoading === `execute-${p.id}`}
                               >
                                 {actionLoading === `execute-${p.id}` ? (
-                                  <span style={{ display: "flex", justify: "center", gap: "6px" }}>
+                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
                                     <Loader className="animate-spin" size={14} /> EXECUTING 1SHOT RELAY...
                                   </span>
                                 ) : (
-                                  <span style={{ display: "flex", justify: "center", gap: "6px" }}>
+                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
                                     <CheckCircle size={12} /> EXECUTE PAYOUT ({appAmt} USDC)
                                   </span>
                                 )}
@@ -490,7 +490,7 @@ export const ProposalPage: React.FC = () => {
           </span>
         </div>
         <div className="window-body" style={{ padding: "0" }}>
-          <div className="code-screen" style={{ maxH: "200px", height: "150px", borderRadius: "0", border: "none" }}>
+          <div className="code-screen" style={{ maxHeight: "200px", height: "150px", borderRadius: "0", border: "none" }}>
             {logs.map((log, i) => (
               <div key={i} style={{ marginBottom: "4px", color: log.includes("[SUCCESS]") ? "var(--matrix-green)" : log.includes("[ERROR]") || log.includes("[FATAL") ? "var(--cyber-magenta)" : "#aaa" }}>
                 {log}

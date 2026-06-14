@@ -24,6 +24,15 @@ const DEFAULT_CONTRACT_ADDRESS = "0x6D2DBABf5Afc6800DDA5B5A7B4B0b245c44AB3e7";
 
 export const getContractAddress = (): `0x${string}` => {
   const stored = localStorage.getItem("siggy_contract_address");
+  const oldAddresses = [
+    "0xE7Fc6E4f39349AA4267c1F852534cec3e165A83e",
+    "0xD1efd161741Cf53BC039f1B0F51e53dBbD3c2F32",
+    "0x63e01Cc4dA79C699f6E51397fD2FE62123f311ee"
+  ];
+  if (stored && oldAddresses.some(addr => addr.toLowerCase() === stored.toLowerCase())) {
+    localStorage.removeItem("siggy_contract_address");
+    return DEFAULT_CONTRACT_ADDRESS as `0x${string}`;
+  }
   return (stored || DEFAULT_CONTRACT_ADDRESS) as `0x${string}`;
 };
 

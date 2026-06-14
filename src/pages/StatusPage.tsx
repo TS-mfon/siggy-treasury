@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Terminal, Shield, Wallet, Link2, Cpu, Key, HelpCircle } from "lucide-react";
+import { Terminal, Shield, Link2 } from "lucide-react";
 import { 
   executorAccount, 
   USDC_BASE_SEPOLIA, 
@@ -284,7 +284,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
                     type="text" 
                     className="form-input" 
                     value={contractAddrInput}
-                    onChange={(e) => setContractAddrInput(e.target.value)}
+                    onChange={(e) => setContractAddrInput(e.target.value as `0x${string}`)}
                     style={{ fontSize: "11px", fontFamily: "monospace" }}
                   />
                 </div>
@@ -308,7 +308,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
           </span>
         </div>
         <div className="window-body" style={{ padding: "0" }}>
-          <div className="code-screen" style={{ maxH: "250px", height: "200px", borderRadius: "0", border: "none" }}>
+          <div className="code-screen" style={{ maxHeight: "250px", height: "200px", borderRadius: "0", border: "none" }}>
             {logs.map((log, i) => (
               <div key={i} style={{ marginBottom: "4px", color: log.includes("[SUCCESS]") ? "var(--matrix-green)" : log.includes("[ERROR]") || log.includes("[FATAL") ? "var(--cyber-magenta)" : "#aaa" }}>
                 {log}
