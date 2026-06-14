@@ -128,7 +128,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       );
       
       addLog("[SUCCESS] MetaMask signature retrieved for execution permissions!");
-      const serializedPayload = JSON.stringify(permissions);
+      const serializedPayload = JSON.stringify(permissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
       addLog(`[INFO] Permission Payload serialized: ${serializedPayload.slice(0, 100)}...`);
 
       // 3. Register on GenLayer Contract
