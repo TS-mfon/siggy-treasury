@@ -128,7 +128,18 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       );
       
       addLog("[SUCCESS] MetaMask signature retrieved for execution permissions!");
-      const serializedPayload = JSON.stringify(permissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
+      
+      // Query factory arguments to handle smart account deployment if counterfactual
+      addLog("[INFO] Querying smart account deployment factory parameters...");
+      const factoryArgs = await (treasuryAccount as any).getFactoryArgs();
+      
+      const enrichedPermissions = permissions.map((p: any) => ({
+        ...p,
+        factory: factoryArgs.factory,
+        factoryData: factoryArgs.factoryData
+      }));
+
+      const serializedPayload = JSON.stringify(enrichedPermissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
       addLog(`[INFO] Permission Payload serialized: ${serializedPayload.slice(0, 100)}...`);
 
       // 3. Register on GenLayer Contract

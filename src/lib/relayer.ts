@@ -70,6 +70,11 @@ export async function estimate7710Transaction(
     singleDelegation.to = singleDelegation.to || singleDelegation.signer;
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
+    
+    // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
+    singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
+    singleDelegation.factoryData = singleDelegation.factoryData || "0x";
+    
     if (singleDelegation.permission?.data) {
       singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
       singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
@@ -102,6 +107,11 @@ export async function send7710Transaction(
     singleDelegation.to = singleDelegation.to || singleDelegation.signer;
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
+    
+    // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
+    singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
+    singleDelegation.factoryData = singleDelegation.factoryData || "0x";
+    
     if (singleDelegation.permission?.data) {
       singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
       singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
