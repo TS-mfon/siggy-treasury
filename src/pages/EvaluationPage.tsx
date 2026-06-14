@@ -225,7 +225,7 @@ export const EvaluationPage: React.FC = () => {
         throw new Error("1Shot Relayer returned empty estimation response.");
       }
       if ((initialEstimate as any).error) {
-        throw new Error(`1Shot Relayer estimation failed: ${(initialEstimate as any).error}`);
+        throw new Error(`1Shot Relayer estimation failed: ${(initialEstimate as any).error}. Inputs: workTx=${JSON.stringify(workTx)}, smartAccountAddress=${smartAccountAddress}, permissionContext=${permissionContext}, signedDelegationBundle=${JSON.stringify(signedDelegationBundle)}`);
       }
       if (!initialEstimate.requiredPaymentAmount) {
         throw new Error(`1Shot Relayer estimation failed: requiredPaymentAmount is undefined. Full response: ${JSON.stringify(initialEstimate)}`);
