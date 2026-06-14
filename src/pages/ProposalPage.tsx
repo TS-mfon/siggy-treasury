@@ -14,7 +14,8 @@ import {
   pollTransactionStatus, 
   encodeErc20Transfer
 } from "../lib/relayer";
-import { USDC_BASE_SEPOLIA } from "../lib/delegation";
+import { USDC_BASE_SEPOLIA, publicClient } from "../lib/delegation";
+import { erc20Abi } from "viem";
 
 interface Proposal {
   id: number;
@@ -106,6 +107,27 @@ export const ProposalPage: React.FC = () => {
     addLog(`[START] Creating proposal: "${title}"...`);
     try {
       const amountMicro = BigInt(Math.round(amountVal * 1e6));
+      
+      // 1. Fetch execution context
+      const execContext = await getExecutionContext();
+      if (!execContext || !execContext.treasury_address || execContext.treasury_address === "0x" || execContext.treasury_address === "") {
+        throw new Error("Treasury address is not registered on the GenLayer contract. Setup delegation first in Admin Panel.");
+      }
+      
+      // 2. Fetch USDC balance of treasury
+      addLog(`[INFO] Verifying treasury USDC balance at: ${execContext.treasury_address}...`);
+      const balanceVal = await publicClient.readContract({
+        address: USDC_BASE_SEPOLIA,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [execContext.treasury_address as `0x${string}`],
+      }) as bigint;
+      
+      if (amountMicro > balanceVal) {
+        throw new Error(`Insufficient funds in DAO Treasury! Available: ${Number(balanceVal) / 1e6} USDC, Requested: ${amountVal} USDC`);
+      }
+      addLog(`[SUCCESS] Treasury balance verified (${Number(balanceVal) / 1e6} USDC available).`);
+
       const txHash = await submitProposal(
         title,
         description,
@@ -136,7 +158,33 @@ export const ProposalPage: React.FC = () => {
     try {
       await evaluateProposal(pid);
       addLog(`[SUCCESS] AI Council has successfully finalized consensus for Proposal ${pid}!`);
-      await fetchProposals();
+      
+      // Fetch and verify proposals status
+      const list = await getAllProposals();
+      const formatted = list.map((p: any) => ({
+        id: Number(p.id),
+        proposer: p.proposer,
+        title: p.title,
+        description: p.description,
+        category: p.category,
+        recipient: p.recipient,
+        requested_amount_micro: p.requested_amount_micro,
+        status: p.status,
+        approved_amount_micro: p.approved_amount_micro,
+        final_reasoning: p.final_reasoning,
+        created_at: p.created_at,
+        tx_hash: p.tx_hash,
+        verdicts: p.verdicts
+      }));
+      setProposals(formatted);
+
+      const updatedProp = formatted.find((p) => p.id === pid);
+      if (updatedProp && updatedProp.status === "approved") {
+        addLog(`[AUTO-DEMOCRACY] Proposal approved on GenLayer! Automatically executing payout...`);
+        await handleExecutePayout(updatedProp);
+      } else {
+        addLog(`[INFO] Proposal not approved for execution. Status: ${updatedProp?.status}`);
+      }
     } catch (err: any) {
       addLog(`[ERROR] Council evaluation failed: ${err.message || err}`);
     } finally {
