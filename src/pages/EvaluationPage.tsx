@@ -136,7 +136,8 @@ export const EvaluationPage: React.FC = () => {
 
       if (updatedProp) {
         if (updatedProp.status === "approved") {
-          addLog(`[AUTO-DEMOCRACY] Proposal approved on GenLayer! Ready for execution.`);
+          addLog(`[AUTO-DEMOCRACY] Proposal approved on GenLayer! Automatically executing payout...`);
+          await handleExecutePayout(updatedProp);
         } else {
           addLog(`[INFO] Proposal evaluated. Result: REJECTED. Reasoning: ${updatedProp.final_reasoning}`);
         }
