@@ -64,11 +64,12 @@ export async function estimate7710Transaction(
   transactions: Array<{ to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any
 ): Promise<{ requiredPaymentAmount: string; gasUsed: string; context: string }> {
+  const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
   const payload = {
     chainId,
     token: tokenAddress,
     transactions,
-    delegation,
+    delegation: singleDelegation,
   };
   return await rpcCall("relayer_estimate7710Transaction", payload);
 }
@@ -81,11 +82,12 @@ export async function send7710Transaction(
   delegation: any,
   context: string
 ): Promise<string> {
+  const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
   const payload = {
     chainId,
     token: tokenAddress,
     transactions,
-    delegation,
+    delegation: singleDelegation,
     context,
   };
   const res = await rpcCall("relayer_send7710Transaction", payload);

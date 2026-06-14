@@ -196,7 +196,7 @@ export const EvaluationPage: React.FC = () => {
       // 2. Discover Relayer capabilities & target fee address
       addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
       const capabilities = await getCapabilities("84532");
-      const targetFeeAddress = capabilities.targetAddress || "0xe696417A6129F29E04E586c071d07c089E2CE2DE";
+      const targetFeeAddress = capabilities?.targetAddress || capabilities?.["84532"]?.targetAddress || "0xe696417A6129F29E04E586c071d07c089E2CE2DE";
       addLog(`[INFO] Relayer target fee address: ${targetFeeAddress}`);
 
       // 3. Assemble Payout Work Transaction
