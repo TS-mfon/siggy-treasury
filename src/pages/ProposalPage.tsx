@@ -1,19 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Terminal, Plus, Play, CheckCircle, Loader } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Terminal, Plus, ArrowRight, ExternalLink, Loader } from "lucide-react";
 import { 
   submitProposal, 
-  evaluateProposal, 
   getAllProposals, 
-  markExecuted,
   getExecutionContext
 } from "../lib/genlayer";
-import { 
-  getCapabilities, 
-  estimate7710Transaction, 
-  send7710Transaction, 
-  pollTransactionStatus, 
-  encodeErc20Transfer
-} from "../lib/relayer";
 import { USDC_BASE_SEPOLIA, publicClient } from "../lib/delegation";
 import { erc20Abi } from "viem";
 
@@ -40,12 +32,16 @@ interface Proposal {
 }
 
 export const ProposalPage: React.FC = () => {
+  const navigate = useNavigate();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>(["SIGGY_OS [v1.0.0] Proposal console ready."]);
+
+  // Success modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [submittedProposalPid, setSubmittedProposalPid] = useState<number | null>(null);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -63,7 +59,6 @@ export const ProposalPage: React.FC = () => {
     try {
       const list = await getAllProposals();
       console.log("Proposals list fetched:", list);
-      // Map bigints/strings appropriately
       const formatted = list.map((p: any) => ({
         id: Number(p.id),
         proposer: p.proposer,
@@ -80,8 +75,10 @@ export const ProposalPage: React.FC = () => {
         verdicts: p.verdicts
       }));
       setProposals(formatted);
+      return formatted;
     } catch (e: any) {
       addLog(`[WARN] Failed to load proposals: ${e.message || e}`);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -145,146 +142,18 @@ export const ProposalPage: React.FC = () => {
       setRecipient("");
       setAmount("");
       
-      await fetchProposals();
+      const latestProposals = await fetchProposals();
+
+      // Find the proposal we just created
+      if (latestProposals.length > 0) {
+        const newest = latestProposals.reduce((prev: any, current: any) => (prev.id > current.id) ? prev : current);
+        setSubmittedProposalPid(newest.id);
+        setShowSuccessModal(true);
+      }
     } catch (err: any) {
       addLog(`[ERROR] Submission failed: ${err.message || err}`);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleRunCouncil = async (pid: number) => {
-    setActionLoading(`council-${pid}`);
-    addLog(`[START] Triggering GenLayer AI Council evaluation for Proposal ID: ${pid}...`);
-    addLog("[INFO] Invoking The Skeptic, The Strategist, and The Ethicist on Studionet...");
-    try {
-      await evaluateProposal(pid);
-      addLog(`[SUCCESS] AI Council has successfully finalized consensus for Proposal ${pid}!`);
-      
-      // Fetch and verify proposals status
-      const list = await getAllProposals();
-      const formatted = list.map((p: any) => ({
-        id: Number(p.id),
-        proposer: p.proposer,
-        title: p.title,
-        description: p.description,
-        category: p.category,
-        recipient: p.recipient,
-        requested_amount_micro: p.requested_amount_micro,
-        status: p.status,
-        approved_amount_micro: p.approved_amount_micro,
-        final_reasoning: p.final_reasoning,
-        created_at: p.created_at,
-        tx_hash: p.tx_hash,
-        verdicts: p.verdicts
-      }));
-      setProposals(formatted);
-
-      const updatedProp = formatted.find((p) => p.id === pid);
-      if (updatedProp && updatedProp.status === "approved") {
-        addLog(`[AUTO-DEMOCRACY] Proposal approved on GenLayer! Automatically executing payout...`);
-        await handleExecutePayout(updatedProp);
-      } else {
-        addLog(`[INFO] Proposal not approved for execution. Status: ${updatedProp?.status}`);
-      }
-    } catch (err: any) {
-      addLog(`[ERROR] Council evaluation failed: ${err.message || err}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleExecutePayout = async (proposal: Proposal) => {
-    setActionLoading(`execute-${proposal.id}`);
-    addLog(`[START] Commencing gasless payout for Proposal ID: ${proposal.id}...`);
-
-    try {
-      // 1. Get execution context from GenLayer
-      addLog("[STEP 1] Fetching authorized permission delegation from GenLayer...");
-      const execContext = await getExecutionContext();
-      if (!execContext.delegation_payload) {
-        throw new Error("No delegation payload registered on the GenLayer contract. Setup required.");
-      }
-      
-      const signedDelegationBundle = JSON.parse(execContext.delegation_payload);
-      addLog("[SUCCESS] Authorized delegation payload retrieved.");
-
-      // 2. Discover Relayer capabilities & target fee address
-      addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
-      const capabilities = await getCapabilities("84532");
-      const targetFeeAddress = capabilities.targetAddress || "0xe696417A6129F29E04E586c071d07c089E2CE2DE";
-      addLog(`[INFO] Relayer target fee address: ${targetFeeAddress}`);
-
-      // 3. Assemble Payout Work Transaction
-      addLog("[STEP 3] Assembling work transaction...");
-      const amountMicro = BigInt(proposal.approved_amount_micro.toString());
-      const workCalldata = encodeErc20Transfer(proposal.recipient, amountMicro);
-      const workTx = {
-        to: USDC_BASE_SEPOLIA,
-        data: workCalldata,
-        value: "0x0"
-      };
-
-      // 4. Estimate gas fee against relayer (First pass)
-      addLog("[STEP 4] Estimating gas payment requirement (First Pass)...");
-      const initialEstimate = await estimate7710Transaction(
-        "84532",
-        USDC_BASE_SEPOLIA,
-        [workTx],
-        signedDelegationBundle
-      );
-      
-      const feeAmount = BigInt(initialEstimate.requiredPaymentAmount);
-      addLog(`[INFO] Relayer fee required: ${Number(feeAmount) / 1e6} USDC`);
-
-      // 5. Build Fee Transaction & bundle
-      addLog("[STEP 5] Encoding fee payment and compiling final transaction bundle...");
-      const feeCalldata = encodeErc20Transfer(targetFeeAddress, feeAmount);
-      const feeTx = {
-        to: USDC_BASE_SEPOLIA,
-        data: feeCalldata,
-        value: "0x0"
-      };
-
-      const fullTransactions = [feeTx, workTx];
-
-      // 6. Final Estimate to secure context signature
-      addLog("[STEP 6] Securing quote context signature from relayer...");
-      const finalEstimate = await estimate7710Transaction(
-        "84532",
-        USDC_BASE_SEPOLIA,
-        fullTransactions,
-        signedDelegationBundle
-      );
-
-      // 7. Submit transaction to 1Shot
-      addLog("[STEP 7] Dispatching bundle to 1Shot Relayer for execution...");
-      const taskId = await send7710Transaction(
-        "84532",
-        USDC_BASE_SEPOLIA,
-        fullTransactions,
-        signedDelegationBundle,
-        finalEstimate.context
-      );
-      addLog(`[SUCCESS] Relayer task generated. Task ID: ${taskId}`);
-
-      // 8. Poll for confirmation
-      addLog("[STEP 8] Polling 1Shot relayer status...");
-      const txHash = await pollTransactionStatus(taskId);
-      addLog(`[SUCCESS] Transaction confirmed on Base Sepolia! Hash: ${txHash}`);
-
-      // 9. Mark executed on GenLayer
-      addLog("[STEP 9] Updating final execution status on GenLayer contract...");
-      const glMarkHash = await markExecuted(proposal.id, txHash);
-      addLog(`[SUCCESS] GenLayer status updated! Tx: ${glMarkHash}`);
-      
-      addLog("[COMPLETE] Payout completed gaslessly!");
-      await fetchProposals();
-    } catch (e: any) {
-      console.error(e);
-      addLog(`[FATAL ERROR] Payout execution failed: ${e.message || JSON.stringify(e)}`);
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -399,7 +268,6 @@ export const ProposalPage: React.FC = () => {
                 {proposals.map((p) => {
                   const isExpanded = expandedId === p.id;
                   const reqAmt = Number(p.requested_amount_micro) / 1e6;
-                  const appAmt = Number(p.approved_amount_micro) / 1e6;
                   
                   return (
                     <div key={p.id} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
@@ -437,88 +305,30 @@ export const ProposalPage: React.FC = () => {
                             <span>Proposer: <code>{p.proposer.slice(0, 6)}...</code></span>
                           </div>
 
-                          {/* AI Verdicts Section */}
-                          {p.status !== "pending" && p.verdicts && (
-                            <div style={{ margin: "15px 0" }}>
-                              <h4 style={{ fontSize: "12px", textTransform: "uppercase", marginBottom: "10px", color: "var(--matrix-green)" }}>
-                                AI Council Decision Breakdown
-                              </h4>
-                              <div className="grid-3" style={{ gap: "12px" }}>
-                                {p.verdicts.map((v, i) => (
-                                  <div key={i} className={`persona-card ${v.vote === "approve" ? "approve" : "reject"}`}>
-                                    <div className="persona-name" style={{ fontSize: "10px", display: "flex", justifyContent: "space-between" }}>
-                                      <span>{v.persona.toUpperCase()}</span>
-                                      <span style={{ color: v.vote === "approve" ? "var(--matrix-green)" : "var(--cyber-magenta)" }}>
-                                        {v.vote.toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: "9px", color: "#666", marginBottom: "6px" }}>
-                                      Conf: {Number(v.confidence)}% | Cap: {Number(v.max_amount_micro) / 1e6} USDC
-                                    </div>
-                                    <p className="persona-reasoning" style={{ fontSize: "10px" }}>
-                                      "{v.reasoning}"
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                              {p.final_reasoning && (
-                                <div style={{ border: "1px solid #222", padding: "10px", background: "#050505", marginTop: "12px", fontSize: "11px", borderLeft: "2px solid var(--matrix-green)" }}>
-                                  <strong>Consensus combiner verdict:</strong> {p.final_reasoning}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Controls */}
-                          <div style={{ marginTop: "15px", display: "flex", gap: "12px" }}>
-                            {p.status === "pending" && (
+                          {/* Controls Redirecting to Evaluation Workspace */}
+                          <div style={{ marginTop: "15px" }}>
+                            {(p.status === "pending" || p.status === "approved") ? (
                               <button 
-                                onClick={() => handleRunCouncil(p.id)} 
+                                onClick={() => navigate(`/evaluate?pid=${p.id}`)} 
                                 className="btn"
-                                style={{ width: "100%", padding: "6px 12px" }}
-                                disabled={actionLoading === `council-${p.id}`}
+                                style={{ width: "100%", padding: "6px 12px", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px" }}
                               >
-                                {actionLoading === `council-${p.id}` ? (
-                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                    <Loader className="animate-spin" size={14} /> COMPUTING ONCHAIN CONSENSUS...
-                                  </span>
-                                ) : (
-                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                    <Play size={12} /> RUN COUNCIL EVALUATION
-                                  </span>
-                                )}
+                                <ArrowRight size={12} /> ENTER EVALUATION CHAMBER (PID #{p.id})
                               </button>
-                            )}
-
-                            {p.status === "approved" && (
-                              <button 
-                                onClick={() => handleExecutePayout(p)} 
-                                className="btn btn-magenta"
-                                style={{ width: "100%", padding: "6px 12px" }}
-                                disabled={actionLoading === `execute-${p.id}`}
-                              >
-                                {actionLoading === `execute-${p.id}` ? (
-                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                    <Loader className="animate-spin" size={14} /> EXECUTING 1SHOT RELAY...
-                                  </span>
-                                ) : (
-                                  <span style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                    <CheckCircle size={12} /> EXECUTE PAYOUT ({appAmt} USDC)
-                                  </span>
-                                )}
-                              </button>
-                            )}
-
-                            {p.status === "executed" && p.tx_hash && (
+                            ) : p.status === "executed" && p.tx_hash ? (
                               <a 
                                 href={`https://sepolia.basescan.org/tx/${p.tx_hash}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="btn"
-                                style={{ width: "100%", padding: "6px 12px", textAlign: "center" }}
+                                style={{ width: "100%", padding: "6px 12px", textAlign: "center", display: "block" }}
                               >
-                                VIEW TRANSACTION ON BASESCAN
+                                VIEW TRANSACTION ON BASESCAN <ExternalLink size={10} style={{ display: "inline", marginLeft: "4px" }} />
                               </a>
+                            ) : (
+                              <div style={{ color: "var(--cyber-magenta)", fontSize: "11px", textAlign: "center", border: "1px dashed #333", padding: "6px" }}>
+                                PROPOSAL REJECTED BY COUNCIL DECISION
+                              </div>
                             )}
                           </div>
                         </div>
@@ -549,6 +359,70 @@ export const ProposalPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && submittedProposalPid !== null && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(0, 0, 0, 0.85)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 2000,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div className="terminal-window" style={{ width: "420px", boxShadow: "0 0 20px var(--matrix-glow)" }}>
+            <div className="window-header">
+              <span className="window-title">PROPOSAL_RECORDED.SYS</span>
+              <button 
+                onClick={() => setShowSuccessModal(false)} 
+                style={{ background: "none", border: "none", color: "var(--cyber-magenta)", cursor: "pointer", fontSize: "12px" }}
+              >
+                [X]
+              </button>
+            </div>
+            <div className="window-body" style={{ textAlign: "center", padding: "24px" }}>
+              <div className="ascii-art" style={{ color: "var(--matrix-green)", fontSize: "8px", margin: "10px 0" }}>
+{`   _____ _    _  _____ _____ ______  _____ _____ 
+  / ____| |  | |/ ____/ ____|  ____|/ ____/ ____|
+ | (___ | |  | | |   | |    | |__  | (___| (___  
+  \\___ \\| |  | | |   | |    |  __|  \\___ \\\\___ \\ 
+  ____) | |__| | |___| |____| |____ ____) |___) |
+ |_____/ \\____/ \\_____\\_____|______|_____/_____/ `}
+              </div>
+              <p style={{ color: "var(--matrix-green)", fontSize: "13px", fontWeight: "bold", margin: "15px 0" }}>
+                PROPOSAL COMMITTED ONCHAIN
+              </p>
+              <p style={{ color: "#ccc", fontSize: "11px", marginBottom: "20px", lineHeight: "1.4" }}>
+                Proposal ID #{submittedProposalPid} was registered on GenLayer Studionet. Trigger evaluation to summon the AI Council and release treasury funds.
+              </p>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate(`/evaluate?pid=${submittedProposalPid}`);
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  RUN EVALUATION <ArrowRight size={12} />
+                </button>
+                <button 
+                  className="btn btn-magenta" 
+                  onClick={() => setShowSuccessModal(false)}
+                >
+                  SKIP FOR NOW
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

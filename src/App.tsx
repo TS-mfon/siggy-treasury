@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, NavLink } from "react-router-dom";
-import { Shield, Wallet, Brain, BarChart2, Cpu } from "lucide-react";
+import { Shield, Wallet, Brain, BarChart2, Cpu, History, CheckSquare } from "lucide-react";
 import { createWalletClient, custom } from "viem";
 import { baseSepolia } from "viem/chains";
 import { LandingPage } from "./pages/LandingPage";
 import { StatusPage } from "./pages/StatusPage";
 import { ProposalPage } from "./pages/ProposalPage";
 import { StatsPage } from "./pages/StatsPage";
+import { EvaluationPage } from "./pages/EvaluationPage";
+import { HistoryPage } from "./pages/HistoryPage";
+import { TutorialGuide } from "./components/TutorialGuide";
 import { getAllProposals, getExecutionContext } from "./lib/genlayer";
 
 function App() {
@@ -78,21 +81,28 @@ function App() {
         });
     }
 
-    // Load setup data
-    getExecutionContext()
-      .then((ctx) => {
-        if (ctx && ctx.treasury_address && ctx.delegation_payload) {
-          setIsConfigured(true);
-          setTreasuryAddress(ctx.treasury_address);
-        }
-      })
-      .catch((e) => console.log("GenLayer not initialized:", e));
+    const checkState = () => {
+      getExecutionContext()
+        .then((ctx) => {
+          if (ctx && ctx.treasury_address && ctx.delegation_payload) {
+            setIsConfigured(true);
+            setTreasuryAddress(ctx.treasury_address);
+          } else {
+            setIsConfigured(false);
+          }
+        })
+        .catch((e) => console.log("GenLayer context fetch error:", e));
 
-    getAllProposals()
-      .then((list) => {
-        setTotalProposals(list.length);
-      })
-      .catch((e) => console.log("GenLayer not initialized:", e));
+      getAllProposals()
+        .then((list) => {
+          setTotalProposals(list.length);
+        })
+        .catch((e) => console.log("GenLayer proposal list fetch error:", e));
+    };
+
+    checkState();
+    const interval = setInterval(checkState, 5000); // poll states every 5s for responsive tutorial guide
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -141,6 +151,18 @@ function App() {
                 className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
               >
                 <Brain size={16} /> Run Proposals
+              </NavLink>
+              <NavLink 
+                to="/evaluate" 
+                className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+              >
+                <CheckSquare size={16} /> Evaluate Proposals
+              </NavLink>
+              <NavLink 
+                to="/history" 
+                className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+              >
+                <History size={16} /> Proposal History
               </NavLink>
               <NavLink 
                 to="/status" 
@@ -208,6 +230,14 @@ function App() {
                 element={<ProposalPage />} 
               />
               <Route 
+                path="/evaluate" 
+                element={<EvaluationPage />} 
+              />
+              <Route 
+                path="/history" 
+                element={<HistoryPage />} 
+              />
+              <Route 
                 path="/status" 
                 element={
                   <StatusPage 
@@ -228,6 +258,14 @@ function App() {
             </Routes>
           </main>
         </div>
+        
+        {/* Floating Interactive Onboarding Tour Widget */}
+        <TutorialGuide 
+          ownerAddress={ownerAddress}
+          isConfigured={isConfigured}
+          treasuryAddress={treasuryAddress}
+          totalProposals={totalProposals}
+        />
       </div>
     </Router>
   );
