@@ -35,6 +35,8 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 - **Double-click Prevention:** An active proposal execution tracking state `executingPids` disables the execution buttons and blocks duplicate execution requests while a payout transaction is actively being estimated, signed, or relayed.
 - **EIP-7710 Transaction-Level Authorization:** Transaction payloads passed to the relayer now include the `permissionContext` attribute extracted from the ERC-7715 delegation signature context, meeting the structural requirements of the 1Shot Relayer backend validation schema.
 - **EIP-7715 Array-to-Grant Normalization:** The relayer client defensively extracts the individual delegation grant object from the EIP-7715 array structure, preventing the relayer backend from failing with an `invalid address (argument="address", value=null)` error.
+- **Transaction Sender Mapping (`from` address):** Both transaction payload objects (`workTx` and `feeTx`) explicitly include the smart account `from` address, completing standard validation checks within Ethers.js on the relayer backend.
+- **Delegation Property Aliasing:** The relayer client populates duplicate property aliases (`signer`/`to` and `account`/`from`) on the delegation grant object to ensure compatibility with various versions of 1Shot relayer parsers.
 
 ---
 

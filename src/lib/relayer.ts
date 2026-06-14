@@ -61,10 +61,16 @@ export function encodeErc20Transfer(recipient: string, amount: bigint): `0x${str
 export async function estimate7710Transaction(
   chainId: string,
   tokenAddress: string,
-  transactions: Array<{ to: string; data: string; value: string; permissionContext?: string }>,
+  transactions: Array<{ from?: string; to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any
 ): Promise<{ requiredPaymentAmount: string; gasUsed: string; context: string }> {
   const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
+  if (singleDelegation) {
+    singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
+    singleDelegation.to = singleDelegation.to || singleDelegation.signer;
+    singleDelegation.account = singleDelegation.account || singleDelegation.from;
+    singleDelegation.from = singleDelegation.from || singleDelegation.account;
+  }
   const payload = {
     chainId,
     token: tokenAddress,
@@ -78,11 +84,17 @@ export async function estimate7710Transaction(
 export async function send7710Transaction(
   chainId: string,
   tokenAddress: string,
-  transactions: Array<{ to: string; data: string; value: string; permissionContext?: string }>,
+  transactions: Array<{ from?: string; to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any,
   context: string
 ): Promise<string> {
   const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
+  if (singleDelegation) {
+    singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
+    singleDelegation.to = singleDelegation.to || singleDelegation.signer;
+    singleDelegation.account = singleDelegation.account || singleDelegation.from;
+    singleDelegation.from = singleDelegation.from || singleDelegation.account;
+  }
   const payload = {
     chainId,
     token: tokenAddress,

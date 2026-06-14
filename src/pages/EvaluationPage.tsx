@@ -191,6 +191,7 @@ export const EvaluationPage: React.FC = () => {
       if (!permissionContext) {
         throw new Error("No permissionContext found in the delegation payload.");
       }
+      const smartAccountAddress = signedDelegationBundle[0]?.from || signedDelegationBundle.from || execContext.treasury_address;
       addLog("[SUCCESS] Authorized delegation payload and context retrieved.");
 
       // 2. Discover Relayer capabilities & target fee address
@@ -204,6 +205,7 @@ export const EvaluationPage: React.FC = () => {
       const amountMicro = BigInt(proposal.approved_amount_micro.toString());
       const workCalldata = encodeErc20Transfer(proposal.recipient, amountMicro);
       const workTx = {
+        from: smartAccountAddress,
         to: USDC_BASE_SEPOLIA,
         data: workCalldata,
         value: "0x0",
@@ -236,6 +238,7 @@ export const EvaluationPage: React.FC = () => {
       addLog("[STEP 5] Encoding fee payment and compiling final transaction bundle...");
       const feeCalldata = encodeErc20Transfer(targetFeeAddress, feeAmount);
       const feeTx = {
+        from: smartAccountAddress,
         to: USDC_BASE_SEPOLIA,
         data: feeCalldata,
         value: "0x0",
