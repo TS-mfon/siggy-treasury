@@ -141,8 +141,20 @@ export const ProposalPage: React.FC = () => {
       setDescription("");
       setRecipient("");
       setAmount("");
+
+      addLog("[INFO] Waiting for GenLayer RPC state synchronization...");
+      let latestProposals: Proposal[] = [];
+      const currentLength = proposals.length;
       
-      const latestProposals = await fetchProposals();
+      for (let attempts = 1; attempts <= 10; attempts++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        latestProposals = await fetchProposals();
+        if (latestProposals.length > currentLength) {
+          addLog(`[SUCCESS] RPC state synchronized on attempt ${attempts}.`);
+          break;
+        }
+        addLog(`[INFO] Syncing block state (attempt ${attempts}/10)...`);
+      }
 
       // Find the proposal we just created
       if (latestProposals.length > 0) {

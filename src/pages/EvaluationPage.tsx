@@ -99,34 +99,49 @@ export const EvaluationPage: React.FC = () => {
     addLog("[INFO] Invoking The Skeptic, The Strategist, and The Ethicist on Studionet...");
     try {
       await evaluateProposal(pid);
-      addLog(`[SUCCESS] AI Council has successfully finalized consensus for Proposal ${pid}!`);
+      addLog(`[SUCCESS] AI Council has finalized consensus. Waiting for RPC state synchronization...`);
       
-      // Fetch latest states
-      const list = await getAllProposals();
-      const formatted = list.map((p: any) => ({
-        id: Number(p.id),
-        proposer: p.proposer,
-        title: p.title,
-        description: p.description,
-        category: p.category,
-        recipient: p.recipient,
-        requested_amount_micro: p.requested_amount_micro,
-        status: p.status,
-        approved_amount_micro: p.approved_amount_micro,
-        final_reasoning: p.final_reasoning,
-        created_at: p.created_at,
-        tx_hash: p.tx_hash,
-        verdicts: p.verdicts
-      }));
+      // Poll for contract state update (sync delay on view endpoints)
+      let formatted: Proposal[] = [];
+      let updatedProp: Proposal | undefined = undefined;
+      
+      for (let attempts = 1; attempts <= 15; attempts++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const list = await getAllProposals();
+        formatted = list.map((p: any) => ({
+          id: Number(p.id),
+          proposer: p.proposer,
+          title: p.title,
+          description: p.description,
+          category: p.category,
+          recipient: p.recipient,
+          requested_amount_micro: p.requested_amount_micro,
+          status: p.status,
+          approved_amount_micro: p.approved_amount_micro,
+          final_reasoning: p.final_reasoning,
+          created_at: p.created_at,
+          tx_hash: p.tx_hash,
+          verdicts: p.verdicts
+        }));
+        
+        updatedProp = formatted.find((p) => p.id === pid);
+        if (updatedProp && updatedProp.status !== "pending") {
+          addLog(`[SUCCESS] RPC state synchronized on attempt ${attempts}.`);
+          break;
+        }
+        addLog(`[INFO] Syncing block state (attempt ${attempts}/15)...`);
+      }
+      
       setProposals(formatted);
 
-      const updatedProp = formatted.find((p) => p.id === pid);
       if (updatedProp) {
         if (updatedProp.status === "approved") {
           addLog(`[AUTO-DEMOCRACY] Proposal approved on GenLayer! Ready for execution.`);
         } else {
           addLog(`[INFO] Proposal evaluated. Result: REJECTED. Reasoning: ${updatedProp.final_reasoning}`);
         }
+      } else {
+        addLog(`[WARN] Proposal ID ${pid} not found after sync loop.`);
       }
     } catch (err: any) {
       addLog(`[ERROR] Council evaluation failed: ${err.message || err}`);
