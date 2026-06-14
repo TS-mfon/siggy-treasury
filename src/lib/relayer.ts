@@ -70,6 +70,10 @@ export async function estimate7710Transaction(
     singleDelegation.to = singleDelegation.to || singleDelegation.signer;
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
+    if (singleDelegation.permission?.data) {
+      singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
+      singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+    }
   }
   const payload = {
     chainId,
@@ -77,7 +81,11 @@ export async function estimate7710Transaction(
     transactions,
     delegation: singleDelegation,
   };
-  return await rpcCall("relayer_estimate7710Transaction", payload);
+  try {
+    return await rpcCall("relayer_estimate7710Transaction", payload);
+  } catch (error: any) {
+    throw new Error(`relayer_estimate7710Transaction failed: ${error.message || error} (Payload: ${JSON.stringify(payload)})`);
+  }
 }
 
 // 4. Send a 7710 delegated transaction
@@ -94,6 +102,10 @@ export async function send7710Transaction(
     singleDelegation.to = singleDelegation.to || singleDelegation.signer;
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
+    if (singleDelegation.permission?.data) {
+      singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
+      singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+    }
   }
   const payload = {
     chainId,
@@ -102,9 +114,13 @@ export async function send7710Transaction(
     delegation: singleDelegation,
     context,
   };
-  const res = await rpcCall("relayer_send7710Transaction", payload);
-  // Returns taskId/transaction id
-  return typeof res === "string" ? res : res.result || res.taskId || JSON.stringify(res);
+  try {
+    const res = await rpcCall("relayer_send7710Transaction", payload);
+    // Returns taskId/transaction id
+    return typeof res === "string" ? res : res.result || res.taskId || JSON.stringify(res);
+  } catch (error: any) {
+    throw new Error(`relayer_send7710Transaction failed: ${error.message || error} (Payload: ${JSON.stringify(payload)})`);
+  }
 }
 
 // 5. Get status of a task
