@@ -66,6 +66,7 @@ class TreasuryCouncil(gl.Contract):
     period_start: str            # ISO date string
     proposals: TreeMap[u256, Proposal]
     proposal_count: u256
+    owner_initialized: bool
 
     # delegation registry — written once during setup
     delegation_payload: str      # serialized ERC-7710 permission/delegation JSON
@@ -75,6 +76,7 @@ class TreasuryCouncil(gl.Contract):
 
     def __init__(self, mission_statement: str, weekly_cap_micro: u256):
         self.owner = gl.message.sender_address
+        self.owner_initialized = False
         self.mission_statement = mission_statement
         self.weekly_cap_micro = weekly_cap_micro
         self.spent_this_period_micro = u256(0)
@@ -90,7 +92,10 @@ class TreasuryCouncil(gl.Contract):
         self, delegation_payload: str, treasury_address: str,
         token_address: str, executor_address: str
     ) -> None:
-        if gl.message.sender_address != self.owner:
+        if not self.owner_initialized:
+            self.owner = gl.message.sender_address
+            self.owner_initialized = True
+        elif gl.message.sender_address != self.owner:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Only owner")
         self.delegation_payload = delegation_payload
         self.treasury_address = treasury_address

@@ -20,7 +20,7 @@ export const genLayerClient = createClient({
 });
 
 // Default contract address (will be overwritten if we deploy another)
-const DEFAULT_CONTRACT_ADDRESS = "0xc7E77a13C195C0B44fAe4c4313cFfA8020793bB8"; 
+const DEFAULT_CONTRACT_ADDRESS = "0x7e202c68476b2BfA28214826AC8A0a051766a5D5"; 
 
 export const getContractAddress = (): `0x${string}` => {
   const stored = localStorage.getItem("siggy_contract_address");
