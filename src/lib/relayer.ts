@@ -44,8 +44,8 @@ export async function getCapabilities(chainId: string = "84532"): Promise<any> {
 }
 
 // 2. Fetch fee data
-export async function getFeeData(chainId: string = "84532"): Promise<any> {
-  return await rpcCall("relayer_getFeeData", [chainId]);
+export async function getFeeData(chainId: string = "84532", tokenAddress: string = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"): Promise<any> {
+  return await rpcCall("relayer_getFeeData", { chainId, token: tokenAddress });
 }
 
 // Encode ERC20 transfer calldata

@@ -9,10 +9,10 @@ import {
   getProposal
 } from "../lib/genlayer";
 import { 
-  getCapabilities, 
-  estimate7710Transaction, 
-  send7710Transaction, 
-  pollTransactionStatus, 
+  getFeeData,
+  estimate7710Transaction,
+  send7710Transaction,
+  pollTransactionStatus,
   encodeErc20Transfer
 } from "../lib/relayer";
 import { USDC_BASE_SEPOLIA } from "../lib/delegation";
@@ -194,11 +194,18 @@ export const EvaluationPage: React.FC = () => {
       const smartAccountAddress = signedDelegationBundle[0]?.from || signedDelegationBundle.from || execContext.treasury_address;
       addLog("[SUCCESS] Authorized delegation payload and context retrieved.");
 
-      // 2. Discover Relayer capabilities & target fee address
-      addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
-      const capabilities = await getCapabilities("84532");
-      const targetFeeAddress = capabilities?.targetAddress || capabilities?.["84532"]?.targetAddress || "0xe696417A6129F29E04E586c071d07c089E2CE2DE";
-      addLog(`[INFO] Relayer target fee address: ${targetFeeAddress}`);
+      // 2. Discover Relayer capabilities & target fee address (fee collector)
+      addLog("[STEP 2] Discovering 1Shot Relayer capabilities and fee collector...");
+      let targetFeeAddress = "0xE936e8FAf4A5655469182A49a505055B71C17604"; // default fallback feeCollector
+      try {
+        const feeData = await getFeeData("84532", USDC_BASE_SEPOLIA);
+        if (feeData && feeData.feeCollector) {
+          targetFeeAddress = feeData.feeCollector;
+        }
+        addLog(`[INFO] Relayer fee collector address: ${targetFeeAddress}`);
+      } catch (e: any) {
+        addLog(`[WARN] Could not fetch dynamic fee collector, using fallback: ${targetFeeAddress}`);
+      }
 
       // 3. Assemble Payout Work Transaction
       addLog("[STEP 3] Assembling work transaction...");
@@ -214,10 +221,20 @@ export const EvaluationPage: React.FC = () => {
 
       // 4. Estimate gas fee against relayer (First pass)
       addLog("[STEP 4] Estimating gas payment requirement (First Pass)...");
+      const dummyFeeAmount = 1000000n; // 1 USDC
+      const dummyFeeCalldata = encodeErc20Transfer(targetFeeAddress, dummyFeeAmount);
+      const dummyFeeTx = {
+        from: smartAccountAddress,
+        to: USDC_BASE_SEPOLIA,
+        data: dummyFeeCalldata,
+        value: "0x0",
+        permissionContext
+      };
+
       const initialEstimate = await estimate7710Transaction(
         "84532",
         USDC_BASE_SEPOLIA,
-        [workTx],
+        [dummyFeeTx, workTx],
         signedDelegationBundle
       );
       
