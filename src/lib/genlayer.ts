@@ -4,10 +4,14 @@ import { generatePrivateKey } from "viem/accounts";
 
 // Get or generate GenLayer local signer account (gasless on studionet)
 const getGenLayerAccount = () => {
-  let pk = localStorage.getItem("siggy_genlayer_pk");
+  let pk = typeof localStorage !== "undefined" && localStorage && typeof localStorage.getItem === "function" 
+    ? localStorage.getItem("siggy_genlayer_pk") 
+    : null;
   if (!pk) {
     pk = generatePrivateKey();
-    localStorage.setItem("siggy_genlayer_pk", pk);
+    if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.setItem === "function") {
+      localStorage.setItem("siggy_genlayer_pk", pk);
+    }
   }
   return createAccount(pk as `0x${string}`);
 };
@@ -23,13 +27,15 @@ export const genLayerClient = createClient({
 const DEFAULT_CONTRACT_ADDRESS = "0x7e202c68476b2BfA28214826AC8A0a051766a5D5"; 
 
 export const getContractAddress = (): `0x${string}` => {
-  const stored = localStorage.getItem("siggy_contract_address");
+  const stored = typeof localStorage !== "undefined" && localStorage && typeof localStorage.getItem === "function" 
+    ? localStorage.getItem("siggy_contract_address") 
+    : null;
   const oldAddresses = [
     "0xE7Fc6E4f39349AA4267c1F852534cec3e165A83e",
     "0xD1efd161741Cf53BC039f1B0F51e53dBbD3c2F32",
     "0x63e01Cc4dA79C699f6E51397fD2FE62123f311ee"
   ];
-  if (stored && oldAddresses.some(addr => addr.toLowerCase() === stored.toLowerCase())) {
+  if (stored && typeof localStorage !== "undefined" && localStorage && typeof localStorage.removeItem === "function" && oldAddresses.some(addr => addr.toLowerCase() === stored.toLowerCase())) {
     localStorage.removeItem("siggy_contract_address");
     return DEFAULT_CONTRACT_ADDRESS as `0x${string}`;
   }
@@ -37,7 +43,9 @@ export const getContractAddress = (): `0x${string}` => {
 };
 
 export const setContractAddress = (address: string) => {
-  localStorage.setItem("siggy_contract_address", address);
+  if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.setItem === "function") {
+    localStorage.setItem("siggy_contract_address", address);
+  }
 };
 
 // Generic read helper

@@ -60,7 +60,7 @@ export function encodeErc20Transfer(recipient: string, amount: bigint): `0x${str
 // 3. Estimate a 7710 delegated transaction
 export async function estimate7710Transaction(
   chainId: string,
-  tokenAddress: string,
+  _tokenAddress: string,
   transactions: Array<{ from?: string; to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any
 ): Promise<{ requiredPaymentAmount: string; gasUsed: string; context: string }> {
@@ -71,6 +71,10 @@ export async function estimate7710Transaction(
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
     
+    // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
+    singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
+    singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
+    
     // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
     singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
     singleDelegation.factoryData = singleDelegation.factoryData || "0x";
@@ -80,12 +84,22 @@ export async function estimate7710Transaction(
       singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
     }
   }
+
   const payload = {
     chainId,
-    token: tokenAddress,
-    transactions,
-    delegation: singleDelegation,
+    transactions: [
+      {
+        permissionContext: [singleDelegation],
+        executions: transactions.map(tx => ({
+          target: tx.to,
+          value: tx.value || "0x0",
+          data: tx.data
+        }))
+      }
+    ],
+    authorizationList: []
   };
+
   try {
     return await rpcCall("relayer_estimate7710Transaction", payload);
   } catch (error: any) {
@@ -96,7 +110,7 @@ export async function estimate7710Transaction(
 // 4. Send a 7710 delegated transaction
 export async function send7710Transaction(
   chainId: string,
-  tokenAddress: string,
+  _tokenAddress: string,
   transactions: Array<{ from?: string; to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any,
   context: string
@@ -108,6 +122,10 @@ export async function send7710Transaction(
     singleDelegation.account = singleDelegation.account || singleDelegation.from;
     singleDelegation.from = singleDelegation.from || singleDelegation.account;
     
+    // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
+    singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
+    singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
+    
     // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
     singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
     singleDelegation.factoryData = singleDelegation.factoryData || "0x";
@@ -117,13 +135,23 @@ export async function send7710Transaction(
       singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
     }
   }
+
   const payload = {
     chainId,
-    token: tokenAddress,
-    transactions,
-    delegation: singleDelegation,
-    context,
+    transactions: [
+      {
+        permissionContext: [singleDelegation],
+        executions: transactions.map(tx => ({
+          target: tx.to,
+          value: tx.value || "0x0",
+          data: tx.data
+        }))
+      }
+    ],
+    authorizationList: [],
+    context
   };
+
   try {
     const res = await rpcCall("relayer_send7710Transaction", payload);
     // Returns taskId/transaction id

@@ -9,6 +9,7 @@ import {
 } from "../lib/delegation";
 import { registerDelegation, getContractAddress, setContractAddress, getExecutionContext } from "../lib/genlayer";
 import { erc20Abi } from "viem";
+import { getCapabilities } from "../lib/relayer";
 
 interface StatusPageProps {
   ownerAddress: string;
@@ -117,14 +118,26 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       setTreasuryAddress(treasuryAccount.address);
       addLog(`[SUCCESS] Treasury account target address: ${treasuryAccount.address}`);
 
-      // 2. Request ERC-7715 permissions from MetaMask (500 USDC weekly)
-      addLog("[STEP 2] Launching MetaMask ERC-7715 Request Execution Permissions dialog...");
-      addLog("[INFO] Requesting 500 USDC periodic weekly limit for Council Executor burner...");
+      // 2. Discover Relayer capabilities & target fee address
+      addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
+      let targetAddress = "0xf1ef956eff4181Ce913b664713515996858B9Ca9"; // default fallback
+      try {
+        const capabilities = await getCapabilities("84532");
+        targetAddress = capabilities?.targetAddress || capabilities?.["84532"]?.targetAddress || targetAddress;
+        addLog(`[INFO] Relayer target fee address discovered: ${targetAddress}`);
+      } catch (e: any) {
+        addLog(`[WARN] Could not fetch dynamic capabilities, using fallback relayer target address: ${targetAddress}`);
+      }
+
+      // 3. Request ERC-7715 permissions from MetaMask (500 USDC weekly)
+      addLog("[STEP 3] Launching MetaMask ERC-7715 Request Execution Permissions dialog...");
+      addLog(`[INFO] Requesting 500 USDC periodic weekly limit for Relayer Target Wallet (${targetAddress})...`);
       
       const limitAmount = 500n * 10n**6n; // 500 USDC
       const permissions = await requestDelegationPermissions(
         treasuryAccount.address,
-        limitAmount
+        limitAmount,
+        targetAddress
       );
       
       addLog("[SUCCESS] MetaMask signature retrieved for execution permissions!");
@@ -142,8 +155,8 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       const serializedPayload = JSON.stringify(enrichedPermissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
       addLog(`[INFO] Permission Payload serialized: ${serializedPayload.slice(0, 100)}...`);
 
-      // 3. Register on GenLayer Contract
-      addLog("[STEP 3] Registering permission delegation to GenLayer Studionet contract...");
+      // 4. Register on GenLayer Contract
+      addLog("[STEP 4] Registering permission delegation to GenLayer Studionet contract...");
       addLog("[INFO] Writing payload, treasury address, USDC address, and session signer address...");
       
       const glTxHash = await registerDelegation(

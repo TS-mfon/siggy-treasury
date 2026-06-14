@@ -34,7 +34,8 @@ export async function getTreasurySmartAccount(ownerAddress: `0x${string}`, walle
 // Request ERC-7715 periodic token permission from MetaMask
 export async function requestDelegationPermissions(
   treasuryAddress: `0x${string}`,
-  limitAmount: bigint
+  limitAmount: bigint,
+  delegateAddress: string = "0xf1ef956eff4181Ce913b664713515996858B9Ca9"
 ) {
   if (typeof window === "undefined" || !(window as any).ethereum) {
     throw new Error("No ethereum provider (MetaMask) found in the browser.");
@@ -55,7 +56,7 @@ export async function requestDelegationPermissions(
     {
       chainId: baseSepolia.id,
       expiry,
-      to: executorAccount.address,
+      to: delegateAddress as `0x${string}`,
       permission: {
         type: "erc20-token-periodic",
         isAdjustmentAllowed: false,
