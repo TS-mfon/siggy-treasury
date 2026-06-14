@@ -5,7 +5,8 @@ import {
   evaluateProposal, 
   getAllProposals, 
   markExecuted,
-  getExecutionContext
+  getExecutionContext,
+  getProposal
 } from "../lib/genlayer";
 import { 
   getCapabilities, 
@@ -44,6 +45,7 @@ export const EvaluationPage: React.FC = () => {
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [executingPids, setExecutingPids] = useState<Set<number>>(new Set());
   const [logs, setLogs] = useState<string[]>(["SIGGY_OS [v1.0.0] Council chamber initialized."]);
 
   const addLog = (msg: string) => {
@@ -152,10 +154,31 @@ export const EvaluationPage: React.FC = () => {
   };
 
   const handleExecutePayout = async (proposal: Proposal) => {
+    if (executingPids.has(proposal.id)) {
+      addLog(`[WARN] Payout execution for Proposal ID ${proposal.id} is already in progress.`);
+      return;
+    }
+
+    setExecutingPids(prev => {
+      const next = new Set(prev);
+      next.add(proposal.id);
+      return next;
+    });
     setActionLoading(`execute-${proposal.id}`);
     addLog(`[START] Commencing gasless payout for Proposal ID: ${proposal.id}...`);
 
     try {
+      // 0. Double-check status directly from GenLayer contract before execution
+      addLog("[STEP 0] Double-checking proposal status onchain...");
+      const latestProposal = await getProposal(proposal.id);
+      if (latestProposal.status === "executed") {
+        throw new Error("This proposal has already been executed.");
+      }
+      if (latestProposal.status !== "approved") {
+        throw new Error(`Proposal is in '${latestProposal.status}' status, expected 'approved'.`);
+      }
+      addLog("[SUCCESS] Proposal status verified as APPROVED.");
+
       // 1. Get execution context from GenLayer
       addLog("[STEP 1] Fetching authorized permission delegation from GenLayer...");
       const execContext = await getExecutionContext();
@@ -191,6 +214,16 @@ export const EvaluationPage: React.FC = () => {
         signedDelegationBundle
       );
       
+      if (!initialEstimate) {
+        throw new Error("1Shot Relayer returned empty estimation response.");
+      }
+      if ((initialEstimate as any).error) {
+        throw new Error(`1Shot Relayer estimation failed: ${(initialEstimate as any).error}`);
+      }
+      if (!initialEstimate.requiredPaymentAmount) {
+        throw new Error(`1Shot Relayer estimation failed: requiredPaymentAmount is undefined. Full response: ${JSON.stringify(initialEstimate)}`);
+      }
+      
       const feeAmount = BigInt(initialEstimate.requiredPaymentAmount);
       addLog(`[INFO] Relayer fee required: ${Number(feeAmount) / 1e6} USDC`);
 
@@ -213,6 +246,16 @@ export const EvaluationPage: React.FC = () => {
         fullTransactions,
         signedDelegationBundle
       );
+
+      if (!finalEstimate) {
+        throw new Error("1Shot Relayer returned empty final estimation response.");
+      }
+      if ((finalEstimate as any).error) {
+        throw new Error(`1Shot Relayer final estimation failed: ${(finalEstimate as any).error}`);
+      }
+      if (!finalEstimate.context) {
+        throw new Error(`1Shot Relayer final estimation failed: context signature is undefined. Full response: ${JSON.stringify(finalEstimate)}`);
+      }
 
       // 7. Submit transaction to 1Shot
       addLog("[STEP 7] Dispatching bundle to 1Shot Relayer for execution...");
@@ -241,6 +284,11 @@ export const EvaluationPage: React.FC = () => {
       console.error(e);
       addLog(`[FATAL ERROR] Payout execution failed: ${e.message || JSON.stringify(e)}`);
     } finally {
+      setExecutingPids(prev => {
+        const next = new Set(prev);
+        next.delete(proposal.id);
+        return next;
+      });
       setActionLoading(null);
     }
   };
@@ -477,9 +525,9 @@ export const EvaluationPage: React.FC = () => {
                       onClick={() => handleExecutePayout(selectedProposal)} 
                       className="btn btn-magenta"
                       style={{ width: "100%" }}
-                      disabled={actionLoading === `execute-${selectedProposal.id}`}
+                      disabled={actionLoading === `execute-${selectedProposal.id}` || executingPids.has(selectedProposal.id)}
                     >
-                      {actionLoading === `execute-${selectedProposal.id}` ? (
+                      {actionLoading === `execute-${selectedProposal.id}` || executingPids.has(selectedProposal.id) ? (
                         <span style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}>
                           <Loader className="animate-spin" size={16} /> EXECUTING 1SHOT GASLESS RELAY...
                         </span>

@@ -8,7 +8,7 @@ const erc20Abi = parseAbi([
 ]);
 
 // Helper for JSON-RPC requests
-export async function rpcCall(method: string, params: any[] | Record<string, any>): Promise<any> {
+export async function rpcCall(method: string, params: any): Promise<any> {
   try {
     const response = await fetch(RELAYER_URL, {
       method: "POST",
@@ -19,7 +19,7 @@ export async function rpcCall(method: string, params: any[] | Record<string, any
         jsonrpc: "2.0",
         id: Date.now(),
         method,
-        params: Array.isArray(params) ? params : [params],
+        params,
       }),
     });
     
@@ -70,7 +70,7 @@ export async function estimate7710Transaction(
     transactions,
     delegation,
   };
-  return await rpcCall("relayer_estimate7710Transaction", [payload]);
+  return await rpcCall("relayer_estimate7710Transaction", payload);
 }
 
 // 4. Send a 7710 delegated transaction
@@ -88,7 +88,7 @@ export async function send7710Transaction(
     delegation,
     context,
   };
-  const res = await rpcCall("relayer_send7710Transaction", [payload]);
+  const res = await rpcCall("relayer_send7710Transaction", payload);
   // Returns taskId/transaction id
   return typeof res === "string" ? res : res.result || res.taskId || JSON.stringify(res);
 }

@@ -17,8 +17,8 @@ Traditional DAO spending councils suffer from high operational overhead, voter a
 ### 1. GenLayer Intelligent Contract (Studionet)
 Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 - **Non-Deterministic Consensus:** The council agents evaluate proposals using GenVM's native `gl.nondet.exec_prompt()`.
-- **Equivalence Principle:** To prevent validator consensus divergence (where different validators query the LLM and get varying text, resulting in validation failure), Siggy enforces a deterministic validator strategy (`validator_fn`). The validator verifies the proposed schema, bounds, and requested amount limits instead of re-running non-deterministic prompts. This ensures consensus finalizes reliably with `MAJORITY_AGREE`.
-- **Weekly Spending Cap:** Enforces a minimum cap of **500 USDC** on weekly discretionary spending. Any proposal exceeding the weekly limit is automatically rejected by the AI agents.
+- **Equivalence Principle:** To prevent validator consensus divergence (where validators get different text answers, causing validation failure), Siggy enforces a deterministic validator strategy (`validator_fn`). The validator verifies the proposed schema, bounds, and requested amount limits instead of re-running non-deterministic prompts. This ensures consensus finalizes reliably with `MAJORITY_AGREE`.
+- **Weekly Spending Cap:** Enforces a limit of **500 USDC** on weekly discretionary spending. Any proposal exceeding the weekly limit is automatically rejected by the AI agents.
 
 ### 2. MetaMask Hybrid Smart Account & ERC-7715 Delegation
 - **Counterfactual Smart Wallet:** Generates a Hybrid smart account for the DAO admin EOA on Base Sepolia via `@metamask/smart-accounts-kit`.
@@ -28,6 +28,11 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 ### 3. Gasless 1Shot Relayer Dispatcher (ERC-7710)
 - **1Shot API Endpoint:** `https://relayer.1shotapi.com/relayers` (Chain ID `84532`)
 - **Gasless Payments:** Once a proposal is approved on GenLayer, the execution client grabs the registered delegation signature, estimates gas costs in USDC, bundles a fee payment to the relayer along with the recipient transfer, and submits it to the 1Shot Relayer. The transaction executes gaslessly, paid directly from the treasury's USDC balance.
+
+### 4. Payout Reliability & Double-Spend Protection
+- **Pre-flight Status Validation:** Prior to initiating the gasless relayer flow, the frontend performs a real-time query (`getProposal`) to verify that the proposal's on-chain status is still `approved` (and not already `executed`).
+- **Relayer Estimation Validation:** Robust response validations protect `estimate7710Transaction` results. If the 1Shot Relayer returns empty results or error fields (such as chain support mismatches), the DApp catches it and outputs a descriptive log in the console instead of crashing with `Cannot convert undefined to a BigInt`.
+- **Double-click Prevention:** An active proposal execution tracking state `executingPids` disables the execution buttons and blocks duplicate execution requests while a payout transaction is actively being estimated, signed, or relayed.
 
 ---
 
@@ -65,21 +70,33 @@ The contract is written in Python for the GenLayer GenVM. It is located in [`con
 - **`AgentVerdict`**: Tracks the vote, confidence level (0-100), max approved amount, and strategic reasoning of each agent persona.
 - **`Proposal`**: Tracks the strategic description, category, requested amount, recipient address, consensus status (`pending`, `approved`, `rejected`, `executed`), final combiner reasoning, EVM transaction hash, and individual agent verdicts.
 
-### Key Contract Functions
-- `register_delegation(delegation_payload, treasury_address, token_address, executor_address)`: Allows the owner to register the ERC-7715 authorization bundle.
-- `submit_proposal(title, description, category, recipient, requested_amount_micro)`: Submits a spending request to the DAO.
-- `evaluate_proposal(pid)`: Triggers GenLayer consensus. Validators execute the non-deterministic evaluations for the 3 agents, combine the results, enforce the weekly cap limit, and output a consensus verdict.
-- `mark_executed(pid, tx_hash)`: Invoked by the executor after dispatching the 1Shot gasless payout transaction to mark the proposal as paid.
-
 ---
 
-## 🎨 Frontend Web Console
+## 🎨 Frontend Web Console Features
 
-Built using **Vite + React + TypeScript + Vanilla CSS**, styled with a premium retro-terminal / matrix green theme to fit the developer console vibe.
+The frontend is built using **Vite + React + TypeScript + Vanilla CSS**, styled with a premium retro-terminal / matrix green theme to fit the developer console vibe.
 
-- **Status Panel:** Connects the admin wallet, calculates the counterfactual smart account address, loads active USDC/ETH balances on Base Sepolia, requests ERC-7715 delegation, and registers it to the GenLayer contract.
-- **Proposal Console:** Submit spending requests, run AI evaluations on Studionet, review consensus verdicts, and execute gasless payments via the 1Shot Relayer.
-- **Analytics & History:** Reviews total distributed funds, council consensus efficiency, relayer endpoint configurations, and logs executed transactions with active Base Scan links.
+1. **Dashboard & Status Panel (`/`):**
+   - Connects the admin EOA wallet.
+   - Computes the counterfactual smart account address.
+   - Loads active USDC/ETH balances on Base Sepolia.
+   - Manages ERC-7715 delegation creation and registers it on-chain to GenLayer.
+2. **Dedicated Proposal Evaluation Workspace (`/evaluate`):**
+   - **Active Queue (`ACTIVE_EVALUATION_QUEUE.LST`):** Lists only pending and approved proposals awaiting review.
+   - **AI Agent Verdict Visualizer:** Renders the 3 AI Council personas (The Skeptic, The Strategist, and The Ethicist) as cards. When a proposal is `pending`, they pulse in standby.
+   - **On-Chain AI Consensus Trigger:** Triggers GenLayer Studionet contract evaluation. Live progress logs stream into a logger terminal box. Once consensus is formed, the cards light up in matrix-green (Approve) or cyberpunk-magenta (Reject) displaying their confidence scores and detailed reasonings.
+   - **Gasless Payout Release:** For approved proposals, the admin clicks **RELEASE FUNDS FROM TREASURY**. It fetches the ERC-7715 delegation, calculates gas fees, compiles the work and relayer fee transactions, and dispatches the bundle via the 1Shot Relayer, showing step-by-step transaction logs in real time.
+3. **Dedicated Proposal History Registry (`/history`):**
+   - Displays all historical records of proposals.
+   - Filter proposals by status (`executed`, `rejected`, `approved`, `pending`) and category, or search by keywords.
+   - Expands historical proposals to display their detailed AI Council verdicts (votes, confidence rating, max approved amount, and exact reasoning text of each agent), along with Basescan transaction links.
+4. **Interactive Onboarding Tutorial Guide (`SIGGY_GUIDE.EXE`):**
+   - A floating, themed assistant card in the bottom-right corner.
+   - Tracks the user's progress through 6 distinct milestones (wallet connection, contract configuration, ERC-7715 delegation setup, funding the smart account, submitting a proposal, and final consensus evaluation/payout release).
+   - State-aware widget dynamically suggests next actions while supporting manual step-by-step override navigation.
+5. **Post-Submission Prompt Modal:**
+   - After a new proposal is successfully recorded on the GenLayer network, the screen dims and displays a terminal-styled popup prompt.
+   - Prompts the user to immediately evaluate the proposal, redirecting them directly to the active evaluation chamber.
 
 ---
 
@@ -126,7 +143,7 @@ To thoroughly evaluate the Siggy prototype:
 
 3. **Grant ERC-7715 Delegation:**
    - Click **GRANT DELEGATION (ERC-7715)**.
-   - MetaMask will open a permission dialog requesting authorization to delegate a weekly limit of 500 USDC to the local burner account.
+   - MetaMask opens a permission dialog requesting authorization to delegate a weekly limit of 500 USDC to the local burner account.
    - Approve the dialog. The signature bundle is automatically serialized and sent via a GenLayer transaction to register the delegation on-chain.
 
 4. **Submit a Proposal:**
@@ -134,13 +151,18 @@ To thoroughly evaluate the Siggy prototype:
    - Input a title, strategic description, recipient address, and requested amount (e.g., 20 USDC).
    - Click **SUBMIT PROPOSAL**. This records the pending proposal on GenLayer.
 
-5. **Trigger AI Council Evaluation:**
-   - Expand the proposal and click **RUN COUNCIL EVALUATION**.
+5. **Post-Submission Prompt:**
+   - Upon successful submission, a terminal modal will pop up.
+   - Click **RUN EVALUATION NOW** to automatically navigate to the Council Chamber console.
+
+6. **Trigger AI Council Evaluation:**
+   - On the evaluation workspace, click **TRIGGER AI COUNCIL CONSENSUS EVALUATION**.
    - The contract's 3 agent personas execute prompts to review risk, roadmaps, and ethics.
    - Once consensus finalizes on GenLayer, the proposal state changes to `approved` (if it passes and does not exceed the weekly cap limit).
 
-6. **Execute Gasless Payout:**
-   - Click **EXECUTE PAYOUT**.
+7. **Execute Gasless Payout:**
+   - Click **RELEASE FUNDS FROM TREASURY**.
    - The application fetches the registered signature payload from GenLayer and sends the transaction bundle to the 1Shot Relayer.
    - The 1Shot Relayer dispatches the transaction on Base Sepolia. The funds are transferred, and the fee is sponsored in USDC gaslessly.
    - The frontend polls the tx, confirms it, and marks the proposal as `executed` on GenLayer with the Base Scan transaction link!
+
