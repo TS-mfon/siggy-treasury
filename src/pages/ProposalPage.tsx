@@ -110,23 +110,25 @@ export const ProposalPage: React.FC = () => {
       
       // 1. Fetch execution context
       const execContext = await getExecutionContext();
-      if (!execContext || !execContext.treasury_address || execContext.treasury_address === "0x" || execContext.treasury_address === "") {
-        throw new Error("Treasury address is not registered on the GenLayer contract. Setup delegation first in Admin Panel.");
-      }
+      const hasTreasury = execContext && execContext.treasury_address && execContext.treasury_address !== "0x" && execContext.treasury_address !== "";
       
-      // 2. Fetch USDC balance of treasury
-      addLog(`[INFO] Verifying treasury USDC balance at: ${execContext.treasury_address}...`);
-      const balanceVal = await publicClient.readContract({
-        address: USDC_BASE_SEPOLIA,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [execContext.treasury_address as `0x${string}`],
-      }) as bigint;
-      
-      if (amountMicro > balanceVal) {
-        throw new Error(`Insufficient funds in DAO Treasury! Available: ${Number(balanceVal) / 1e6} USDC, Requested: ${amountVal} USDC`);
+      if (hasTreasury) {
+        // 2. Fetch USDC balance of treasury
+        addLog(`[INFO] Verifying treasury USDC balance at: ${execContext.treasury_address}...`);
+        const balanceVal = await publicClient.readContract({
+          address: USDC_BASE_SEPOLIA,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [execContext.treasury_address as `0x${string}`],
+        }) as bigint;
+        
+        if (amountMicro > balanceVal) {
+          throw new Error(`Insufficient funds in DAO Treasury! Available: ${Number(balanceVal) / 1e6} USDC, Requested: ${amountVal} USDC`);
+        }
+        addLog(`[SUCCESS] Treasury balance verified (${Number(balanceVal) / 1e6} USDC available).`);
+      } else {
+        addLog(`[WARN] Treasury delegation is not active on GenLayer. Payouts cannot be executed automatically until delegation is set up in the Admin Panel.`);
       }
-      addLog(`[SUCCESS] Treasury balance verified (${Number(balanceVal) / 1e6} USDC available).`);
 
       const txHash = await submitProposal(
         title,
