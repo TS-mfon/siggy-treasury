@@ -22,7 +22,7 @@ Deployed at: `0xb18D9EB0EF7f1b3A55C54AB01CAB8a6894b9c5D3` (Chain ID `61999`)
 
 ### 2. MetaMask Hybrid Smart Account & ERC-7715 Delegation
 - **Counterfactual Smart Wallet:** Generates a Hybrid smart account for the DAO admin EOA on Base Sepolia via `@metamask/smart-accounts-kit`.
-- **Administrative Delegation:** The admin grants a periodic token spending delegation (ERC-7715) to a locally generated **Council Executor session/burner key** (`0xEd9EDd8586b20524CafA4F568413C504C9B03172`).
+- **Administrative Delegation:** The admin grants a periodic token spending delegation (ERC-7715) to a locally generated **Council Executor session/burner key** (`0x9d229da88714D78C43E2298Ccb8432946CC9810F`).
 - **Signature Registration:** The signed delegation signature payload is registered on the GenLayer contract (`register_delegation`), making it retrievable by any authorized client executing a payout.
 
 ### 3. Gasless 1Shot Relayer Dispatcher (ERC-7710)
@@ -116,7 +116,7 @@ To thoroughly evaluate the Siggy prototype:
 
 1. **Retrieve the Deployed Addresses:**
    - **GenLayer Studionet Contract:** `0xb18D9EB0EF7f1b3A55C54AB01CAB8a6894b9c5D3`
-   - **Council Session/Burner Address:** `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
+   - **Council Session/Burner Address:** `0x9d229da88714D78C43E2298Ccb8432946CC9810F`
    - **Base Sepolia USDC Token:** `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 
 2. **Access the Config Panel:**

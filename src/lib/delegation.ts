@@ -1,8 +1,8 @@
 import { toMetaMaskSmartAccount, Implementation } from "@metamask/smart-accounts-kit";
 import { erc7715ProviderActions } from "@metamask/smart-accounts-kit/actions";
-import { createPublicClient, createWalletClient, custom, http } from "viem";
+import { createPublicClient, createWalletClient, custom, http, keccak256, toBytes } from "viem";
 import { baseSepolia } from "viem/chains";
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
 
 // Base Sepolia USDC Token Address
 export const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
@@ -12,14 +12,10 @@ export const publicClient = createPublicClient({
   transport: http(),
 });
 
-// Get or generate Council Executor session account (burner key)
+// Get deterministic Council Executor session account (burner key shared globally)
 const getExecutorAccount = () => {
-  let pk = localStorage.getItem("siggy_executor_pk");
-  if (!pk) {
-    pk = generatePrivateKey();
-    localStorage.setItem("siggy_executor_pk", pk);
-  }
-  return privateKeyToAccount(pk as `0x${string}`);
+  const pk = keccak256(toBytes("siggy-council-executor-session-key-v1"));
+  return privateKeyToAccount(pk);
 };
 
 export const executorAccount = getExecutorAccount();
