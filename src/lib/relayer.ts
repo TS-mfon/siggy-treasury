@@ -64,32 +64,35 @@ export async function estimate7710Transaction(
   transactions: Array<{ from?: string; to: string; data: string; value: string; permissionContext?: string }>,
   delegation: any
 ): Promise<{ requiredPaymentAmount: string; gasUsed: string; context: string }> {
-  const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
-  if (singleDelegation) {
-    singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
-    singleDelegation.to = singleDelegation.to || singleDelegation.signer;
-    singleDelegation.account = singleDelegation.account || singleDelegation.from;
-    singleDelegation.from = singleDelegation.from || singleDelegation.account;
-    
-    // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
-    singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
-    singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
-    
-    // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
-    singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
-    singleDelegation.factoryData = singleDelegation.factoryData || "0x";
-    
-    if (singleDelegation.permission?.data) {
-      singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
-      singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+  const delegationArray = Array.isArray(delegation) ? delegation : [delegation];
+  const formattedDelegations = delegationArray.map(singleDelegation => {
+    if (singleDelegation) {
+      singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
+      singleDelegation.to = singleDelegation.to || singleDelegation.signer;
+      singleDelegation.account = singleDelegation.account || singleDelegation.from;
+      singleDelegation.from = singleDelegation.from || singleDelegation.account;
+      
+      // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
+      singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
+      singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
+      
+      // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
+      singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
+      singleDelegation.factoryData = singleDelegation.factoryData || "0x";
+      
+      if (singleDelegation.permission?.data) {
+        singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
+        singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+      }
     }
-  }
+    return singleDelegation;
+  });
 
   const payload = {
     chainId,
     transactions: [
       {
-        permissionContext: [singleDelegation],
+        permissionContext: formattedDelegations,
         executions: transactions.map(tx => ({
           target: tx.to,
           value: tx.value || "0x0",
@@ -115,32 +118,35 @@ export async function send7710Transaction(
   delegation: any,
   context: string
 ): Promise<string> {
-  const singleDelegation = Array.isArray(delegation) ? delegation[0] : delegation;
-  if (singleDelegation) {
-    singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
-    singleDelegation.to = singleDelegation.to || singleDelegation.signer;
-    singleDelegation.account = singleDelegation.account || singleDelegation.from;
-    singleDelegation.from = singleDelegation.from || singleDelegation.account;
-    
-    // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
-    singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
-    singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
-    
-    // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
-    singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
-    singleDelegation.factoryData = singleDelegation.factoryData || "0x";
-    
-    if (singleDelegation.permission?.data) {
-      singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
-      singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+  const delegationArray = Array.isArray(delegation) ? delegation : [delegation];
+  const formattedDelegations = delegationArray.map(singleDelegation => {
+    if (singleDelegation) {
+      singleDelegation.signer = singleDelegation.signer || singleDelegation.to;
+      singleDelegation.to = singleDelegation.to || singleDelegation.signer;
+      singleDelegation.account = singleDelegation.account || singleDelegation.from;
+      singleDelegation.from = singleDelegation.from || singleDelegation.account;
+      
+      // Add Biconomy/EIP-7715 aliases to prevent relayer Address value=null errors
+      singleDelegation.delegator = singleDelegation.delegator || singleDelegation.from;
+      singleDelegation.delegate = singleDelegation.delegate || singleDelegation.to;
+      
+      // Add factory address and factoryData fallbacks if missing to satisfy ethers.Address validation
+      singleDelegation.factory = singleDelegation.factory || "0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c";
+      singleDelegation.factoryData = singleDelegation.factoryData || "0x";
+      
+      if (singleDelegation.permission?.data) {
+        singleDelegation.permission.data.token = singleDelegation.permission.data.token || singleDelegation.permission.data.tokenAddress;
+        singleDelegation.permission.data.tokenAddress = singleDelegation.permission.data.tokenAddress || singleDelegation.permission.data.token;
+      }
     }
-  }
+    return singleDelegation;
+  });
 
   const payload = {
     chainId,
     transactions: [
       {
-        permissionContext: [singleDelegation],
+        permissionContext: formattedDelegations,
         executions: transactions.map(tx => ({
           target: tx.to,
           value: tx.value || "0x0",

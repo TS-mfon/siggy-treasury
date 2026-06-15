@@ -15,7 +15,11 @@ import {
   pollTransactionStatus,
   encodeErc20Transfer
 } from "../lib/relayer";
-import { USDC_BASE_SEPOLIA } from "../lib/delegation";
+import { USDC_BASE_SEPOLIA, executorAccount } from "../lib/delegation";
+import { redelegatePermissionContextAction } from "@metamask/smart-accounts-kit/actions";
+import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
+import { createWalletClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
 
 interface Proposal {
   id: number;
@@ -187,25 +191,58 @@ export const EvaluationPage: React.FC = () => {
       }
       
       const signedDelegationBundle = JSON.parse(execContext.delegation_payload);
-      const permissionContext = signedDelegationBundle[0]?.context || signedDelegationBundle.context;
+      const parentDelegation = Array.isArray(signedDelegationBundle) ? signedDelegationBundle[0] : signedDelegationBundle;
+      const permissionContext = parentDelegation?.context || parentDelegation.permissionContext;
       if (!permissionContext) {
         throw new Error("No permissionContext found in the delegation payload.");
       }
-      const smartAccountAddress = signedDelegationBundle[0]?.from || signedDelegationBundle.from || execContext.treasury_address;
+      const smartAccountAddress = parentDelegation?.from || parentDelegation.from || execContext.treasury_address;
       addLog("[SUCCESS] Authorized delegation payload and context retrieved.");
 
       // 2. Discover Relayer capabilities & target fee address (fee collector)
       addLog("[STEP 2] Discovering 1Shot Relayer capabilities and fee collector...");
       let targetFeeAddress = "0xE936e8FAf4A5655469182A49a505055B71C17604"; // default fallback feeCollector
+      let relayerTargetAddress = "0xf1ef956eff4181Ce913b664713515996858B9Ca9"; // default fallback targetAddress
       try {
         const feeData = await getFeeData("84532", USDC_BASE_SEPOLIA);
         if (feeData && feeData.feeCollector) {
           targetFeeAddress = feeData.feeCollector;
         }
+        if (feeData && feeData.targetAddress) {
+          relayerTargetAddress = feeData.targetAddress;
+        }
         addLog(`[INFO] Relayer fee collector address: ${targetFeeAddress}`);
+        addLog(`[INFO] Relayer target wallet address: ${relayerTargetAddress}`);
       } catch (e: any) {
         addLog(`[WARN] Could not fetch dynamic fee collector, using fallback: ${targetFeeAddress}`);
       }
+
+      // 2.5 Perform EIP-7715 redelegation to relayer target address
+      addLog("[STEP 2.5] Performing EIP-7715 redelegation from burner key to relayer target wallet...");
+      const burnerClient = createWalletClient({
+        account: executorAccount,
+        chain: baseSepolia,
+        transport: http(),
+      });
+      const environment = getSmartAccountsEnvironment(84532);
+      
+      const redelegateResult = await redelegatePermissionContextAction(burnerClient as any, {
+        permissionContext,
+        to: relayerTargetAddress as `0x${string}`,
+        environment,
+        chainId: 84532,
+        allowInsecureUnrestrictedDelegation: true
+      } as any);
+
+      const redelegatedObj = redelegateResult.delegation as any;
+      // In EIP-7710, context should be the full redelegated chain hex string
+      redelegatedObj.context = redelegateResult.permissionContext;
+      
+      // Update parent delegation's context to the full redelegated chain hex string as well
+      parentDelegation.context = redelegateResult.permissionContext;
+
+      const delegationChain = [parentDelegation, redelegatedObj];
+      addLog("[SUCCESS] EIP-7715 redelegation successfully created.");
 
       // 3. Assemble Payout Work Transaction
       addLog("[STEP 3] Assembling work transaction...");
@@ -216,7 +253,7 @@ export const EvaluationPage: React.FC = () => {
         to: USDC_BASE_SEPOLIA,
         data: workCalldata,
         value: "0x0",
-        permissionContext
+        permissionContext: redelegateResult.permissionContext
       };
 
       // 4. Estimate gas fee against relayer (First pass)
@@ -228,21 +265,21 @@ export const EvaluationPage: React.FC = () => {
         to: USDC_BASE_SEPOLIA,
         data: dummyFeeCalldata,
         value: "0x0",
-        permissionContext
+        permissionContext: redelegateResult.permissionContext
       };
 
       const initialEstimate = await estimate7710Transaction(
         "84532",
         USDC_BASE_SEPOLIA,
         [dummyFeeTx, workTx],
-        signedDelegationBundle
+        delegationChain
       );
       
       if (!initialEstimate) {
         throw new Error("1Shot Relayer returned empty estimation response.");
       }
       if ((initialEstimate as any).error) {
-        throw new Error(`1Shot Relayer estimation failed: ${(initialEstimate as any).error}. Inputs: workTx=${JSON.stringify(workTx)}, smartAccountAddress=${smartAccountAddress}, permissionContext=${permissionContext}, signedDelegationBundle=${JSON.stringify(signedDelegationBundle)}`);
+        throw new Error(`1Shot Relayer estimation failed: ${(initialEstimate as any).error}. Inputs: workTx=${JSON.stringify(workTx)}, smartAccountAddress=${smartAccountAddress}, permissionContext=${redelegateResult.permissionContext}, delegationChain=${JSON.stringify(delegationChain)}`);
       }
       if (!initialEstimate.requiredPaymentAmount) {
         throw new Error(`1Shot Relayer estimation failed: requiredPaymentAmount is undefined. Full response: ${JSON.stringify(initialEstimate)}`);
@@ -259,7 +296,7 @@ export const EvaluationPage: React.FC = () => {
         to: USDC_BASE_SEPOLIA,
         data: feeCalldata,
         value: "0x0",
-        permissionContext
+        permissionContext: redelegateResult.permissionContext
       };
 
       const fullTransactions = [feeTx, workTx];
@@ -270,7 +307,7 @@ export const EvaluationPage: React.FC = () => {
         "84532",
         USDC_BASE_SEPOLIA,
         fullTransactions,
-        signedDelegationBundle
+        delegationChain
       );
 
       if (!finalEstimate) {
@@ -289,7 +326,7 @@ export const EvaluationPage: React.FC = () => {
         "84532",
         USDC_BASE_SEPOLIA,
         fullTransactions,
-        signedDelegationBundle,
+        delegationChain,
         finalEstimate.context
       );
       addLog(`[SUCCESS] Relayer task generated. Task ID: ${taskId}`);
