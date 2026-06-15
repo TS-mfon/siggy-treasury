@@ -163,12 +163,14 @@ The frontend is built using **Vite + React + TypeScript + Vanilla CSS**, styled 
 
 ## 🌐 Live Deployments & Key Details
 
-- **Production Frontend URL:** [https://siggy-treasury.vercel.app](https://siggy-treasury.vercel.app)
-- **GenLayer Studionet Contract:** `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
-- **Treasury Address (EOA):** `0xEd9EDd8586b20524CafA4F568413C504C9B03172` (Base Sepolia, Chain ID `84532`)
-- **USDC Token Address (Base Sepolia):** `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
-- **Council Session/Burner Address:** `0x9d229da88714D78C43E2298Ccb8432946CC9810F`
-- **1Shot Relayer URL:** `https://relayer.1shotapi.dev/relayers`
+* **Production Frontend URL:** [https://siggy-treasury.vercel.app](https://siggy-treasury.vercel.app)
+* **Deployment URL:** [https://siggy-treasury-jkxck4wel-gen-daves-projects.vercel.app](https://siggy-treasury-jkxck4wel-gen-daves-projects.vercel.app)
+* **Vercel Build Inspector:** [Inspect Deployment](https://www.google.com/search?q=https://vercel.com/shortcut-or-full-link-if-needed) *(Note: You can swap this text out with the actual hyperlink if you'd like!)*
+* **GenLayer Studionet Contract:** `0x7e202c68476b2BfA28214826AC8A0a051766a5D5`
+* **Treasury Address (EOA):** `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
+* **USDC Token Address (Base Sepolia):** `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+* **Council Session/Burner Address:** `0x9d229da88714D78C43E2298Ccb8432946CC9810F`
+* **1Shot Relayer URL:** `https://relayer.1shotapi.dev/relayers`
 
 ---
 
