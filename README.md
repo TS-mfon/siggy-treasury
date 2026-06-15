@@ -21,8 +21,9 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 - **Weekly Spending Cap:** Enforces a limit of **500 USDC** on weekly discretionary spending. Any proposal exceeding the weekly limit is automatically rejected by the AI agents.
 
 ### 2. MetaMask Hybrid Smart Account & ERC-7715 Delegation
-- **Counterfactual Smart Wallet:** Generates a Hybrid smart account for the DAO admin EOA on Base Sepolia via `@metamask/smart-accounts-kit`.
+- **Counterfactual Smart Wallet:** Generates a Hybrid smart account for the DAO admin EOA on Base Sepolia via `@metamask/smart-accounts-kit` at address `0x1E229Bbf0c027583Dd450Ca7B682E9f6cF11c035`.
 - **Administrative Delegation:** The admin grants a periodic token spending delegation (ERC-7715) to a locally generated **Council Executor session/burner key** (`0x9d229da88714D78C43E2298Ccb8432946CC9810F`).
+- **CREATE2 Targeting:** In order to reconcile the smart account address throughout the EIP-7715/EIP-7710 pipeline, the delegation request explicitly specifies `from: treasuryAddress`. This ensures that MetaMask requests permissions on behalf of the CREATE2 smart account rather than upgrading the EOA owner using EIP-7702.
 - **Signature Registration:** The signed delegation signature payload is registered on the GenLayer contract (`register_delegation`), making it retrievable by any authorized client executing a payout.
 
 ### 3. Gasless 1Shot Relayer Dispatcher (ERC-7710)
@@ -31,6 +32,7 @@ Deployed at: `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
 
 ### 4. Payout Reliability & Double-Spend Protection
 - **Pre-flight Status Validation:** Prior to initiating the gasless relayer flow, the frontend performs a real-time query (`getProposal`) to verify that the proposal's on-chain status is still `approved` (and not already `executed`).
+- **Pre-flight USDC Balance Check:** The frontend queries the smart account's USDC balance via `publicClient.readContract` prior to estimation. It verifies that the treasury contains enough USDC to cover both the payout amount and a `0.05 USDC` buffer for relayer fees. If insufficient, it blocks the payout and displays a clear message to prevent relayer-side reverts.
 - **Relayer Estimation Validation:** Robust response validations protect `estimate7710Transaction` results. If the 1Shot Relayer returns empty results or error fields (such as chain support mismatches), the DApp catches it and outputs a descriptive log in the console instead of crashing with `Cannot convert undefined to a BigInt`.
 - **Double-click Prevention:** An active proposal execution tracking state `executingPids` disables the execution buttons and blocks duplicate execution requests while a payout transaction is actively being estimated, signed, or relayed.
 - **EIP-7710 Nested Execution Bundles:** Transaction payloads compile all transfer executions (for recipient payout and relayer gas fee) into a nested `executions` list under a single EIP-7715 delegation `permissionContext`, adhering directly to the EIP-7710 specification.
@@ -166,6 +168,16 @@ To thoroughly evaluate the Siggy prototype:
 7. **Execute Gasless Payout:**
    - Click **RELEASE FUNDS FROM TREASURY**.
    - The application fetches the registered signature payload from GenLayer and sends the transaction bundle to the 1Shot Relayer.
-   - The 1Shot Relayer dispatches the transaction on Base Sepolia. The funds are transferred, and the fee is sponsored in USDC gaslessly.
-   - The frontend polls the tx, confirms it, and marks the proposal as `executed` on GenLayer with the Base Scan transaction link!
+      - The 1Shot Relayer dispatches the transaction on Base Sepolia. The funds are transferred, and the fee is sponsored in USDC gaslessly.
+      - The frontend polls the tx, confirms it, and marks the proposal as `executed` on GenLayer with the Base Scan transaction link!
 
+---
+
+## 🌐 Live Deployments & Key Details
+
+- **Production Frontend URL:** [https://siggy-treasury.vercel.app](https://siggy-treasury.vercel.app)
+- **GenLayer Studionet Contract:** `0x7e202c68476b2BfA28214826AC8A0a051766a5D5` (Chain ID `61999`)
+- **Treasury Smart Account Address (CREATE2):** `0x1E229Bbf0c027583Dd450Ca7B682E9f6cF11c035` (Base Sepolia, Chain ID `84532`)
+- **USDC Token Address (Base Sepolia):** `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+- **Council Session/Burner Address:** `0x9d229da88714D78C43E2298Ccb8432946CC9810F`
+- **1Shot Relayer URL:** `https://relayer.1shotapi.dev/relayers` (Sponsored in USDC)
