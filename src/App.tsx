@@ -86,7 +86,14 @@ function App() {
         .then((ctx) => {
           if (ctx && ctx.treasury_address && ctx.delegation_payload) {
             setIsConfigured(true);
-            setTreasuryAddress(ctx.treasury_address);
+            try {
+              const parsed = JSON.parse(ctx.delegation_payload);
+              const parent = Array.isArray(parsed) ? parsed[0] : parsed;
+              const actualTreasury = parent?.from || ctx.treasury_address;
+              setTreasuryAddress(actualTreasury);
+            } catch (err) {
+              setTreasuryAddress(ctx.treasury_address);
+            }
           } else {
             setIsConfigured(false);
           }

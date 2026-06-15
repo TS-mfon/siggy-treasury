@@ -3,14 +3,12 @@ import { Terminal, Shield, Link2 } from "lucide-react";
 import { 
   executorAccount, 
   USDC_BASE_SEPOLIA, 
-  getTreasurySmartAccount, 
-  publicClient
+  publicClient,
+  requestDelegationPermissions
 } from "../lib/delegation";
 import { registerDelegation, getContractAddress, setContractAddress, getExecutionContext } from "../lib/genlayer";
 import { erc20Abi } from "viem";
 import { getCapabilities } from "../lib/relayer";
-import { encodeDelegations } from "@metamask/delegation-core";
-import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
 
 interface StatusPageProps {
   ownerAddress: string;
@@ -67,16 +65,9 @@ export const StatusPage: React.FC<StatusPageProps> = ({
 
   useEffect(() => {
     if (ownerAddress && walletClient) {
-      // Calculate counterfactual treasury address
-      getTreasurySmartAccount(ownerAddress as `0x${string}`, walletClient)
-        .then((account) => {
-          setTreasuryAddress(account.address);
-          addLog(`[INFO] Calculated counterfactual Treasury address: ${account.address}`);
-          updateBalances(account.address);
-        })
-        .catch((e) => {
-          addLog(`[ERROR] Failed to load Smart Account: ${e.message}`);
-        });
+      setTreasuryAddress(ownerAddress);
+      addLog(`[INFO] EOA Treasury Address active: ${ownerAddress}`);
+      updateBalances(ownerAddress);
     }
   }, [ownerAddress, walletClient]);
 
@@ -113,11 +104,9 @@ export const StatusPage: React.FC<StatusPageProps> = ({
     addLog("[START] Initiating treasury authorization sequence...");
 
     try {
-      // 1. Get Smart Account
-      addLog("[STEP 1] Generating counterfactual Treasury Smart Account...");
-      const treasuryAccount = await getTreasurySmartAccount(ownerAddress as `0x${string}`, walletClient);
-      setTreasuryAddress(treasuryAccount.address);
-      addLog(`[SUCCESS] Treasury account target address: ${treasuryAccount.address}`);
+      // 1. Set Treasury EOA Address
+      setTreasuryAddress(ownerAddress);
+      addLog(`[SUCCESS] Treasury address target EOA: ${ownerAddress}`);
 
       // 2. Discover Relayer capabilities & target fee address
       addLog("[STEP 2] Discovering 1Shot Relayer capabilities...");
@@ -130,78 +119,19 @@ export const StatusPage: React.FC<StatusPageProps> = ({
         addLog(`[WARN] Could not fetch dynamic capabilities, using fallback relayer target address: ${targetAddress}`);
       }
 
-      // 3. Request signature on raw delegation struct (avoiding the EOA from address restriction in requestExecutionPermissions)
-      addLog("[STEP 3] Signing ERC-7715 delegation from the CREATE2 Treasury Smart Account...");
+      // 3. Request EIP-7715 permissions directly from MetaMask EOA delegating to Council Executor burner
+      addLog("[STEP 3] Requesting ERC-7715 delegation permissions from MetaMask EOA...");
       const limitAmount = 500n * 10n**6n; // 500 USDC
-      const currentTime = Math.floor(Date.now() / 1000);
       
-      const delegation = {
-        delegator: treasuryAccount.address,
-        delegate: targetAddress as `0x${string}`,
-        authority: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" as `0x${string}`,
-        salt: BigInt(currentTime),
-        caveats: [
-          {
-            enforcer: "0x474e3ae7e169e940607cc624da8a15eb120139ab" as `0x${string}`,
-            // Period amount: 500 USDC, duration: 1 week (604800s)
-            terms: ("0x036cbd53842c5426634e7929541ec2318f3dcf7e" + 
-                   "000000000000000000000000000000000000000000000000000000001dcd6500" + 
-                   "0000000000000000000000000000000000000000000000000000000000093a80" + 
-                   "000000000000000000000000000000000000000000000000000000006a2e4f27") as `0x${string}`,
-            args: "0x" as `0x${string}`
-          }
-        ]
-      };
-
-      const environment = getSmartAccountsEnvironment(84532);
-      const delegationManager = environment.DelegationManager;
-
-      const signature = await (treasuryAccount as any).signDelegation({
-        delegation,
-        chainId: 84532
-      });
+      const permissions = await requestDelegationPermissions(
+        ownerAddress as `0x${string}`,
+        limitAmount,
+        executorAccount.address
+      );
 
       addLog("[SUCCESS] MetaMask signature retrieved for execution permissions!");
 
-      // 3.5 Encode the delegation with its signature
-      const context = encodeDelegations([
-        {
-          ...delegation,
-          signature
-        }
-      ]);
-
-      // Query factory arguments to handle smart account deployment if counterfactual
-      addLog("[INFO] Querying smart account deployment factory parameters...");
-      const factoryArgs = await (treasuryAccount as any).getFactoryArgs();
-
-      const singlePermission = {
-        chainId: 84532,
-        from: treasuryAccount.address,
-        to: targetAddress,
-        permission: {
-          type: "erc20-token-periodic",
-          isAdjustmentAllowed: false,
-          data: {
-            tokenAddress: USDC_BASE_SEPOLIA,
-            periodAmount: limitAmount,
-            periodDuration: 60 * 60 * 24 * 7,
-            startTime: currentTime,
-          }
-        },
-        rules: [],
-        context,
-        delegationManager,
-        signer: targetAddress,
-        account: treasuryAccount.address,
-        delegator: treasuryAccount.address,
-        delegate: targetAddress,
-        factory: factoryArgs.factory,
-        factoryData: factoryArgs.factoryData
-      };
-
-      const enrichedPermissions = [singlePermission];
-      const serializedPayload = JSON.stringify(enrichedPermissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
+      const serializedPayload = JSON.stringify(permissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
       addLog(`[INFO] Permission Payload serialized: ${serializedPayload.slice(0, 100)}...`);
 
       // 4. Register on GenLayer Contract
@@ -210,7 +140,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       
       const glTxHash = await registerDelegation(
         serializedPayload,
-        treasuryAccount.address,
+        ownerAddress,
         USDC_BASE_SEPOLIA,
         executorAccount.address
       );
@@ -219,7 +149,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       setIsConfigured(true);
       addLog("[COMPLETE] Treasury setup finalized. Siggy OS is now fully operational!");
       
-      await updateBalances(treasuryAccount.address);
+      await updateBalances(ownerAddress);
     } catch (e: any) {
       console.error(e);
       addLog(`[FATAL ERROR] Setup failed: ${e.message || JSON.stringify(e)}`);
@@ -261,7 +191,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
                   </span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #222", paddingBottom: "6px" }}>
-                  <span style={{ color: "var(--system-gray)" }}>TREASURY SMART ACCOUNT:</span>
+                  <span style={{ color: "var(--system-gray)" }}>TREASURY ADDRESS (EOA):</span>
                   <span>
                     {treasuryAddress ? (
                       <a 
