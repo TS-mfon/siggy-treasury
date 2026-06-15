@@ -4,12 +4,13 @@ import {
   executorAccount, 
   USDC_BASE_SEPOLIA, 
   getTreasurySmartAccount, 
-  requestDelegationPermissions,
   publicClient
 } from "../lib/delegation";
 import { registerDelegation, getContractAddress, setContractAddress, getExecutionContext } from "../lib/genlayer";
 import { erc20Abi } from "viem";
 import { getCapabilities } from "../lib/relayer";
+import { encodeDelegations } from "@metamask/delegation-core";
+import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
 
 interface StatusPageProps {
   ownerAddress: string;
@@ -129,29 +130,77 @@ export const StatusPage: React.FC<StatusPageProps> = ({
         addLog(`[WARN] Could not fetch dynamic capabilities, using fallback relayer target address: ${targetAddress}`);
       }
 
-      // 3. Request ERC-7715 permissions from MetaMask (500 USDC weekly)
-      addLog("[STEP 3] Launching MetaMask ERC-7715 Request Execution Permissions dialog...");
-      addLog(`[INFO] Requesting 500 USDC periodic weekly limit for Relayer Target Wallet (${targetAddress})...`);
-      
+      // 3. Request signature on raw delegation struct (avoiding the EOA from address restriction in requestExecutionPermissions)
+      addLog("[STEP 3] Signing ERC-7715 delegation from the CREATE2 Treasury Smart Account...");
       const limitAmount = 500n * 10n**6n; // 500 USDC
-      const permissions = await requestDelegationPermissions(
-        treasuryAccount.address,
-        limitAmount,
-        targetAddress
-      );
+      const currentTime = Math.floor(Date.now() / 1000);
       
+      const delegation = {
+        delegator: treasuryAccount.address,
+        delegate: targetAddress as `0x${string}`,
+        authority: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" as `0x${string}`,
+        salt: BigInt(currentTime),
+        caveats: [
+          {
+            enforcer: "0x474e3ae7e169e940607cc624da8a15eb120139ab" as `0x${string}`,
+            // Period amount: 500 USDC, duration: 1 week (604800s)
+            terms: ("0x036cbd53842c5426634e7929541ec2318f3dcf7e" + 
+                   "000000000000000000000000000000000000000000000000000000001dcd6500" + 
+                   "0000000000000000000000000000000000000000000000000000000000093a80" + 
+                   "000000000000000000000000000000000000000000000000000000006a2e4f27") as `0x${string}`,
+            args: "0x" as `0x${string}`
+          }
+        ]
+      };
+
+      const environment = getSmartAccountsEnvironment(84532);
+      const delegationManager = environment.DelegationManager;
+
+      const signature = await (treasuryAccount as any).signDelegation({
+        delegation,
+        chainId: 84532
+      });
+
       addLog("[SUCCESS] MetaMask signature retrieved for execution permissions!");
-      
+
+      // 3.5 Encode the delegation with its signature
+      const context = encodeDelegations([
+        {
+          ...delegation,
+          signature
+        }
+      ]);
+
       // Query factory arguments to handle smart account deployment if counterfactual
       addLog("[INFO] Querying smart account deployment factory parameters...");
       const factoryArgs = await (treasuryAccount as any).getFactoryArgs();
-      
-      const enrichedPermissions = permissions.map((p: any) => ({
-        ...p,
+
+      const singlePermission = {
+        chainId: 84532,
+        from: treasuryAccount.address,
+        to: targetAddress,
+        permission: {
+          type: "erc20-token-periodic",
+          isAdjustmentAllowed: false,
+          data: {
+            tokenAddress: USDC_BASE_SEPOLIA,
+            periodAmount: limitAmount,
+            periodDuration: 60 * 60 * 24 * 7,
+            startTime: currentTime,
+          }
+        },
+        rules: [],
+        context,
+        delegationManager,
+        signer: targetAddress,
+        account: treasuryAccount.address,
+        delegator: treasuryAccount.address,
+        delegate: targetAddress,
         factory: factoryArgs.factory,
         factoryData: factoryArgs.factoryData
-      }));
+      };
 
+      const enrichedPermissions = [singlePermission];
       const serializedPayload = JSON.stringify(enrichedPermissions, (_, v) => typeof v === "bigint" ? v.toString() : v);
       addLog(`[INFO] Permission Payload serialized: ${serializedPayload.slice(0, 100)}...`);
 
