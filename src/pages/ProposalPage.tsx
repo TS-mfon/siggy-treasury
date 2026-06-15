@@ -110,13 +110,25 @@ export const ProposalPage: React.FC = () => {
       const hasTreasury = execContext && execContext.treasury_address && execContext.treasury_address !== "0x" && execContext.treasury_address !== "";
       
       if (hasTreasury) {
+        // Resolve actual treasury address from delegation payload if available
+        let targetTreasuryAddress = execContext.treasury_address;
+        if (execContext.delegation_payload) {
+          try {
+            const parsed = JSON.parse(execContext.delegation_payload);
+            const parent = Array.isArray(parsed) ? parsed[0] : parsed;
+            targetTreasuryAddress = parent?.from || parent?.delegator || execContext.treasury_address;
+          } catch (err) {
+            console.error("Failed to parse delegation payload in ProposalPage:", err);
+          }
+        }
+
         // 2. Fetch USDC balance of treasury
-        addLog(`[INFO] Verifying treasury USDC balance at: ${execContext.treasury_address}...`);
+        addLog(`[INFO] Verifying treasury USDC balance at: ${targetTreasuryAddress}...`);
         const balanceVal = await publicClient.readContract({
           address: USDC_BASE_SEPOLIA,
           abi: erc20Abi,
           functionName: "balanceOf",
-          args: [execContext.treasury_address as `0x${string}`],
+          args: [targetTreasuryAddress as `0x${string}`],
         }) as bigint;
         
         if (amountMicro > balanceVal) {

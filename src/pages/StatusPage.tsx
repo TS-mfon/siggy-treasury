@@ -76,9 +76,19 @@ export const StatusPage: React.FC<StatusPageProps> = ({
     getExecutionContext()
       .then((ctx) => {
         if (ctx && ctx.treasury_address && ctx.delegation_payload) {
+          let actualTreasury = ctx.treasury_address;
+          try {
+            const parsed = JSON.parse(ctx.delegation_payload);
+            const parent = Array.isArray(parsed) ? parsed[0] : parsed;
+            actualTreasury = parent?.from || parent?.delegator || ctx.treasury_address;
+          } catch (e) {
+            console.error("Failed to parse delegation payload in StatusPage:", e);
+          }
+          
           setIsConfigured(true);
-          setTreasuryAddress(ctx.treasury_address);
-          addLog(`[INFO] Active delegation registered on GenLayer for treasury: ${ctx.treasury_address}`);
+          setTreasuryAddress(actualTreasury);
+          addLog(`[INFO] Active delegation registered on GenLayer for treasury: ${actualTreasury}`);
+          updateBalances(actualTreasury);
         } else {
           setIsConfigured(false);
           addLog("[WARN] No delegation payload found on GenLayer contract.");
@@ -87,7 +97,7 @@ export const StatusPage: React.FC<StatusPageProps> = ({
       .catch((e) => {
         addLog(`[WARN] Could not retrieve contract context: ${e.message || e}`);
       });
-  }, [contractAddrInput]);
+  }, [contractAddrInput, ownerAddress]);
 
   const handleUpdateContractAddr = () => {
     setContractAddress(contractAddrInput);

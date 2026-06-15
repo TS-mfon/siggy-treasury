@@ -11,6 +11,7 @@ import { EvaluationPage } from "./pages/EvaluationPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { TutorialGuide } from "./components/TutorialGuide";
 import { getAllProposals, getExecutionContext } from "./lib/genlayer";
+import { getTreasurySmartAccount } from "./lib/delegation";
 
 function App() {
   const [ownerAddress, setOwnerAddress] = useState<string>("");
@@ -18,6 +19,8 @@ function App() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [treasuryAddress, setTreasuryAddress] = useState("");
   const [totalProposals, setTotalProposals] = useState(0);
+  const [computedSmartAccountAddress, setComputedSmartAccountAddress] = useState<string>("");
+
 
   const connectWallet = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -80,22 +83,49 @@ function App() {
           }
         });
     }
+  }, []);
 
+  useEffect(() => {
+    if (ownerAddress && walletClient) {
+      getTreasurySmartAccount(ownerAddress as `0x${string}`, walletClient)
+        .then((sa) => {
+          setComputedSmartAccountAddress(sa.address);
+        })
+        .catch((e) => console.error("Error computing smart account address:", e));
+    } else {
+      setComputedSmartAccountAddress("");
+    }
+  }, [ownerAddress, walletClient]);
+
+  useEffect(() => {
     const checkState = () => {
       getExecutionContext()
         .then((ctx) => {
           if (ctx && ctx.treasury_address && ctx.delegation_payload) {
-            setIsConfigured(true);
             try {
               const parsed = JSON.parse(ctx.delegation_payload);
               const parent = Array.isArray(parsed) ? parsed[0] : parsed;
               const actualTreasury = parent?.from || ctx.treasury_address;
-              setTreasuryAddress(actualTreasury);
+              
+              // Only mark configured if the registered delegation belongs to the connected owner address
+              const isMine = !ownerAddress || 
+                actualTreasury.toLowerCase() === ownerAddress.toLowerCase() ||
+                (computedSmartAccountAddress && actualTreasury.toLowerCase() === computedSmartAccountAddress.toLowerCase());
+
+              if (isMine) {
+                setIsConfigured(true);
+                setTreasuryAddress(actualTreasury);
+              } else {
+                setIsConfigured(false);
+                setTreasuryAddress("");
+              }
             } catch (err) {
-              setTreasuryAddress(ctx.treasury_address);
+              setIsConfigured(false);
+              setTreasuryAddress("");
             }
           } else {
             setIsConfigured(false);
+            setTreasuryAddress("");
           }
         })
         .catch((e) => console.log("GenLayer context fetch error:", e));
@@ -110,7 +140,7 @@ function App() {
     checkState();
     const interval = setInterval(checkState, 5000); // poll states every 5s for responsive tutorial guide
     return () => clearInterval(interval);
-  }, []);
+  }, [ownerAddress, computedSmartAccountAddress]);
 
   return (
     <Router>

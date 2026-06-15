@@ -51,6 +51,9 @@ export const EvaluationPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [executingPids, setExecutingPids] = useState<Set<number>>(new Set());
   const [logs, setLogs] = useState<string[]>(["SIGGY_OS [v1.0.0] Council chamber initialized."]);
+  const [locallyExecutedPids, setLocallyExecutedPids] = useState<Set<number>>(new Set());
+  const [localTxHashes, setLocalTxHashes] = useState<Record<number, string>>({});
+
 
   const addLog = (msg: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -358,6 +361,17 @@ export const EvaluationPage: React.FC = () => {
       addLog(`[SUCCESS] GenLayer status updated! Tx: ${glMarkHash}`);
       
       addLog("[COMPLETE] Payout completed gaslessly!");
+      
+      setLocalTxHashes((prev) => ({
+        ...prev,
+        [proposal.id]: txHash,
+      }));
+      setLocallyExecutedPids((prev) => {
+        const next = new Set(prev);
+        next.add(proposal.id);
+        return next;
+      });
+
       await fetchProposals();
     } catch (e: any) {
       console.error(e);
@@ -372,8 +386,16 @@ export const EvaluationPage: React.FC = () => {
     }
   };
 
-  const activeProposals = proposals.filter(p => p.status === "pending" || p.status === "approved");
-  const selectedProposal = proposals.find(p => p.id === selectedPid);
+  const activeProposals = proposals.filter(p => {
+    if (locallyExecutedPids.has(p.id)) return false;
+    return p.status === "pending" || p.status === "approved";
+  });
+  const rawSelectedProposal = proposals.find(p => p.id === selectedPid);
+  const selectedProposal = rawSelectedProposal ? {
+    ...rawSelectedProposal,
+    status: locallyExecutedPids.has(rawSelectedProposal.id) ? "executed" : rawSelectedProposal.status,
+    tx_hash: localTxHashes[rawSelectedProposal.id] || rawSelectedProposal.tx_hash
+  } : undefined;
 
   return (
     <div className="evaluation-page">
