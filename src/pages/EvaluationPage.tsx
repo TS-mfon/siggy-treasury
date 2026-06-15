@@ -241,7 +241,7 @@ export const EvaluationPage: React.FC = () => {
       // Update parent delegation's context to the full redelegated chain hex string as well
       parentDelegation.context = redelegateResult.permissionContext;
 
-      const delegationChain = [parentDelegation, redelegatedObj];
+      const delegationChain = [redelegatedObj, parentDelegation];
       addLog("[SUCCESS] EIP-7715 redelegation successfully created.");
 
       // 3. Assemble Payout Work Transaction
