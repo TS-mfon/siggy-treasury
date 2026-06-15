@@ -204,11 +204,23 @@ export async function send7710Transaction(
 
 // 5. Get status of a task
 export async function getStatus(taskId: string): Promise<{ status: string; txHash?: string; error?: string }> {
-  const res = await rpcCall("relayer_getStatus", [taskId]);
+  const res = await rpcCall("relayer_getStatus", { id: taskId, logs: false });
+  const statusMap: Record<number | string, string> = {
+    "100": "Pending",
+    "110": "Submitted",
+    "200": "Confirmed",
+    "400": "Rejected",
+    "500": "Reverted",
+  };
+  const rawStatus = res.status;
+  const status = statusMap[rawStatus] || "Pending";
+  const txHash = res.receipt?.transactionHash || res.hash || res.txHash || res.transactionHash;
+  const error = res.message || (res.data ? JSON.stringify(res.data) : undefined) || res.error;
+  
   return {
-    status: res.status || res,
-    txHash: res.txHash || res.transactionHash,
-    error: res.error,
+    status,
+    txHash,
+    error,
   };
 }
 
