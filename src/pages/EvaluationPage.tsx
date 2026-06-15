@@ -15,10 +15,10 @@ import {
   pollTransactionStatus,
   encodeErc20Transfer
 } from "../lib/relayer";
-import { USDC_BASE_SEPOLIA, executorAccount } from "../lib/delegation";
+import { USDC_BASE_SEPOLIA, executorAccount, publicClient } from "../lib/delegation";
 import { redelegatePermissionContextAction } from "@metamask/smart-accounts-kit/actions";
 import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
-import { createWalletClient, http } from "viem";
+import { createWalletClient, http, erc20Abi } from "viem";
 import { baseSepolia } from "viem/chains";
 
 interface Proposal {
@@ -199,6 +199,23 @@ export const EvaluationPage: React.FC = () => {
       const smartAccountAddress = parentDelegation?.from || parentDelegation.from || execContext.treasury_address;
       addLog("[SUCCESS] Authorized delegation payload and context retrieved.");
 
+      // Pre-flight USDC balance check
+      addLog("[INFO] Checking treasury USDC balance (pre-flight)...");
+      const amountMicro = BigInt(proposal.approved_amount_micro.toString());
+      const usdcBalance = await publicClient.readContract({
+        address: USDC_BASE_SEPOLIA,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [smartAccountAddress as `0x${string}`],
+      }) as bigint;
+      const neededAmount = amountMicro + 50000n; // proposal amount + 0.05 USDC fee buffer
+      if (usdcBalance < neededAmount) {
+        const hasUSDC = Number(usdcBalance) / 1e6;
+        const needsUSDC = Number(neededAmount) / 1e6;
+        throw new Error(`Treasury balance too low: has ${hasUSDC.toFixed(2)} USDC, needs ~${needsUSDC.toFixed(2)} USDC`);
+      }
+      addLog(`[SUCCESS] USDC check passed: Treasury has ${Number(usdcBalance) / 1e6} USDC`);
+
       // 2. Discover Relayer capabilities & target fee address (fee collector)
       addLog("[STEP 2] Discovering 1Shot Relayer capabilities and fee collector...");
       let targetFeeAddress = "0xE936e8FAf4A5655469182A49a505055B71C17604"; // default fallback feeCollector
@@ -246,7 +263,6 @@ export const EvaluationPage: React.FC = () => {
 
       // 3. Assemble Payout Work Transaction
       addLog("[STEP 3] Assembling work transaction...");
-      const amountMicro = BigInt(proposal.approved_amount_micro.toString());
       const workCalldata = encodeErc20Transfer(proposal.recipient, amountMicro);
       const workTx = {
         from: smartAccountAddress,

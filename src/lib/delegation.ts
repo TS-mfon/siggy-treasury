@@ -54,6 +54,7 @@ export async function requestDelegationPermissions(
 
   const permissions = await walletClient.requestExecutionPermissions([
     {
+      from: treasuryAddress,
       chainId: baseSepolia.id,
       expiry,
       to: delegateAddress as `0x${string}`,
